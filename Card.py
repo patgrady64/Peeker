@@ -61,10 +61,10 @@ class Card(object):
                 self.full_suit = "Spades"
                 self.int_suit = 4
 
-    def show_full(self):
+    def print_full(self):
         print("{} of {}".format(self.full_value, self.full_suit))
 
-    def show_mini(self):
+    def print_mini(self):
         print("{}{}".format(self.value,self.suit))
 
     @property

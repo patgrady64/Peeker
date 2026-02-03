@@ -10,7 +10,7 @@ class Player:
 
     def print_cards(self):
         for card in self.cards:
-            card.show_full()
+            card.print_full()
 
     def inject(self,cards_to_inject, deck):
         self.cards.clear()
