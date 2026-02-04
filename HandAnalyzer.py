@@ -5,18 +5,21 @@ class HandAnalyzer(object):
         self.player_cards = cards
         self.remaining_deck = deck
         self.rank_name = None
+        self.extra_data = ""
         self.rank_value_lookup = {"High Card": 1, "Pair": 2, "Two Pair": 3, "Three of a Kind": 4, "Straight": 5, "Flush": 6, "Full House": 7, "Four of a Kind": 8, "Straight Flush": 9, "Royal Flush": 10}
         self.sorted_hand = sorted(cards, key=lambda c: c.get_int_value)
 
     def is_straight(self):
         card_values = [card.get_int_value for card in self.sorted_hand]
-        if card_values[4] - card_values[0] == 4 or card_values == [2, 3, 4, 5, 14]:
+        if (card_values[4] - card_values[0] == 4 and len(set(card_values)) == 5) or card_values == [2, 3, 4, 5, 14]:
+            # add High Card to extra_data
+            self.extra_data = f" High Card {self.sorted_hand[4].get_value_name}"
             return True
         else:
             return False
 
     def is_flush(self):
-        suits = [card.get_int_suit for card in self.player_cards]
+        suits = [card.get_int_suit for card in self.sorted_hand]
         return len(set(suits)) == 1
 
     def is_straight_flush(self):
@@ -55,6 +58,7 @@ class HandAnalyzer(object):
     def analyze(self):
         if self.is_straight_flush() and self.player_cards[0].get_int_value == 10:
             self.rank_name = "Royal Flush"
+            self.extra_data = ""
             return
         if self.is_straight_flush():
             self.rank_name = "Straight Flush"
@@ -83,4 +87,4 @@ class HandAnalyzer(object):
         self.rank_name = "High Card"
 
     def print_hand_rank(self):
-            print(self.rank_name)
+            print(f"{self.rank_name}{self.extra_data}")

@@ -21,3 +21,7 @@ class Card(object):
     @property
     def get_int_suit(self):
         return self.int_suit_lookup[self.suit]
+
+    @property
+    def get_value_name(self):
+        return self.full_value_lookup[self.value]
