@@ -359,6 +359,18 @@ This tutorial is perfect for you because he also discusses the itertools logic f
 
 [Stack Overflow] Simplest Algorithm for Poker Hand Evaluation: This thread is a goldmine. It discusses several advanced ways to "score" a hand using math instead of 50 if statements. Look specifically at the "histogram" or "bitmask" answers.
 
+Royal flush - 10000
+Straight flush - 9000 + highest card
+Four of a kind - 8000 + card
+Full house - 7000 + card
+----- Here we have a smal gap
+Flush - 5000 + highest card
+Straight - 4000 + highest card
+Three of a kind - 3000 + card
+Two pair - 2000 + 13*card1 + card2 (card1 > card2)
+Pair - 1000 + card
+
+
 3. The Video Poker Context
 Since Video Poker uses specific payouts (like "Jacks or Better"), the rules are slightly different from Texas Hold 'em.
 
@@ -649,3 +661,42 @@ Hayeah - Playing Cards Assets (PNG)
 
 Kenney.nl - Board Game Pack (Alternative Cards)
 
+Since you're diving into the GUI with CustomTkinter, you'll want to move beyond basic layout and start focusing on the "Custom" part—making it responsive, themed, and interactive.
+
+Here are the best resources to help you master CustomTkinter for your poker trainer:
+
+1. The "Official" Essentials
+Always start with the source. These are the most up-to-date guides for widget properties and theme settings.
+
+[Official Website] CustomTkinter Documentation: This is your dictionary. It lists every single argument for widgets (like corner_radius, fg_color, and hover_color) which you'll need to make your poker buttons look modern.
+
+[GitHub] CustomTkinter Complex Example: This is a single script that uses almost every widget. It’s a great "cheat sheet" to see how to organize sidebar menus and tab views in a real application.
+
+2. Mastering the Grid (Layout Logic)
+Video poker requires precise alignment. The Grid System is your best friend here.
+
+[YouTube] 1. Grid System | CustomTkinter Tutorial: This tutorial explains grid_columnconfigure and sticky parameters. You’ll use these to ensure your cards stay centered while your stats sidebar stays fixed to the left.
+
+[Article] TkDocs - The Grid Geometry Manager: While this covers standard Tkinter, the logic is identical. It’s the best explanation of how "weights" work to make your window responsive when you resize it.
+
+3. Handling Images & Buttons
+Since your game depends on card visuals, these are specific to getting those .png files onto buttons.
+
+[YouTube] Python GUI with CustomTkinter – Build a Beautiful Stock Tracker: This is a high-quality project-based video. It shows you how to integrate images and create a "dashboard" feel, which is perfect for your trainer’s layout.
+
+[Stack Overflow] How to use image as button in customtkinter?: A quick fix for a common issue: how to make a button display only the card image without any extra text or borders.
+
+4. Themes & Color Customization
+To get that "Casino" or "Pro Tool" look:
+
+[Website] CustomTkinter Color and Themes: Explains how to use "Tuple Colors" (e.g., ("#LightHex", "#DarkHex")) so your app looks perfect in both Light and Dark modes.
+
+[GitHub] Custom Themes (.json): If you don't like the default blue/green, you can download .json theme files here or use the "Theme Builder" to create your own "Casino Green" theme.
+
+5. Advanced Component Design
+[YouTube] The ultimate introduction to modern GUIs in Python: A massive 10-hour course, but the CustomTkinter section (starting at 09:34:28) is a masterclass in building modern apps from scratch.
+
+My Implementation Tip:
+When building your "Cards," don't create 5 separate buttons manually. Use a Loop and store them in a list (e.g., self.card_buttons = []). This makes it much easier to "reset" or "flip" them all at once later.
+
+Would you like me to find a guide on how to create "Pop-up Dialogs" or "Toasts" in CustomTkinter? (This is useful for showing the user their mistake without breaking the flow of the game.)
