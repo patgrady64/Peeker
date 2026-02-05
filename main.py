@@ -7,7 +7,7 @@ if __name__ == '__main__':
     player = Player()
     for i in range(5):
         player.add(deck.dealOne())
-    # player.inject(["5s", "jc", "jh", "5d", "js"], deck)
+    # player.inject(["8s", "7d", "qh", "4d", "kh"], deck)
     player.print_cards()
     analyzed = HandAnalyzer(player.get_cards, deck.get_cards)
     analyzed.analyze()
