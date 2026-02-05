@@ -77,18 +77,22 @@ class HandAnalyzer(object):
             self.get_all_hold_combinations()
             self.find_optimal_move()
 
-            print("\n" + "=" * 50)
-            print("FINAL STRATEGY DECISION")
-            print("=" * 50)
+            print("\n" + "=" * 60)
+            print(f"{'RANK':<5} | {'EXPECTED VALUE':<15} | {'HOLD STRATEGY'}")
+            print("-" * 60)
 
-            if self.best_move:
-                print(f"ACTION: {self.format_move(self.best_move)}")
-                print(f"EXPECTED VALUE: {self.best_ev:.4f}")
-            else:
-                print("ACTION: Discard All")
-                print(f"EXPECTED VALUE: {self.best_ev:.4f}")
+            # Display Top 5
+            for index, result in enumerate(self.all_move_results[:5]):
+                rank = index + 1
+                ev_str = f"{result['ev']:.4f}"
+                # We use a compact version of format_move here
+                move_str = self.format_move_compact(result)
 
-            print("=" * 50 + "\n")
+                # Highlight the winner
+                prefix = "-->" if rank == 1 else "   "
+                print(f"{prefix} #{rank} | {ev_str:<15} | {move_str}")
+
+            print("=" * 60 + "\n")
 
         except Exception as e:
             import traceback
@@ -155,8 +159,7 @@ class HandAnalyzer(object):
         return total_payout / count if count > 0 else 0
 
     def find_optimal_move(self):
-        self.best_ev = -1.0
-        self.best_move = None
+        self.all_move_results = []  # New list to store every calculation
 
         print("Thinking...", end="", flush=True)
         for i, move in enumerate(self.all_possible_holds):
@@ -165,11 +168,19 @@ class HandAnalyzer(object):
 
             current_ev = self.calculate_hold_ev(move["cards"])
 
-            # --- THE MISSING LINK ---
-            # Compare the result of this move to the best one we've seen so far
-            if current_ev > self.best_ev:
-                self.best_ev = current_ev
-                self.best_move = move
+            # Store everything about this move
+            self.all_move_results.append({
+                "mask": move["mask"],
+                "cards": move["cards"],
+                "ev": current_ev
+            })
+
+        # Sort the list by EV in descending order
+        self.all_move_results.sort(key=lambda x: x["ev"], reverse=True)
+
+        # Set the absolute best for backward compatibility
+        self.best_move = self.all_move_results[0]
+        self.best_ev = self.all_move_results[0]["ev"]
 
         print(" Done!")
 
@@ -345,6 +356,27 @@ class HandAnalyzer(object):
                 output.append(f"     {card_display}")
 
         return " | ".join(output)
+
+    def format_move_compact(self, move):
+        mask = move["mask"]
+        holds = []
+
+        # Mapping for display (adjust suit icons as needed)
+        rank_map = {11: 'J', 12: 'Q', 13: 'K', 14: 'A'}
+        suit_map = {1: '♣', 2: '♦', 3: '♥', 4: '♠'}
+
+        for i, bit in enumerate(mask):
+            if bit == 1:
+                card = self.player_cards[i]
+                rv = card.get_int_value
+                r_str = rank_map.get(rv, str(rv))
+                s_icon = suit_map.get(card.get_int_suit, "?")
+                holds.append(f"{r_str}{s_icon}")
+
+        if not holds:
+            return "DISCARD ALL"
+
+        return "HOLD " + " ".join(holds)
 
     def print_hand_rank(self):
         if self.rank is not None:
