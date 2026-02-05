@@ -102,14 +102,10 @@ class HandAnalyzer(object):
         if counts_list[:2] == [2, 2]:
             val = max([v for v, c in counts_map.items() if c == 2])
             return HandRank.TWO_PAIR, val
-
-        # One Pair (Jacks or Better check)
+        # One Pair
         if counts_list[0] == 2:
             val = [v for v, c in counts_map.items() if c == 2][0]
-            if val >= 11:  # Jack=11, Queen=12, King=13, Ace=14
-                return HandRank.PAIR, val
-            else:
-                return HandRank.HIGH_CARD, 0
+            return HandRank.PAIR, val
 
         # 6. Final Fallback (Always returns a tuple to prevent unpacking errors)
         return HandRank.HIGH_CARD, 0

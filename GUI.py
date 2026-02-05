@@ -3,6 +3,7 @@ from tkinter import messagebox
 from Deck import Deck
 from HandAnalyzer import HandAnalyzer
 from GameState import GameState
+from HandRank import HandRank
 
 
 class GUI:
@@ -19,6 +20,7 @@ class GUI:
         self.holds = [False] * 5
         self.game_state = GameState.DEAL
         self.analyzer = None
+        self.hand_count = 0
 
         # --- UI Elements ---
         self.hand_rank = ""
@@ -88,6 +90,8 @@ class GUI:
         self.analyzer.analyze()
 
     def process_deal(self):
+        self.bankroll -= 1
+        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
         self.result_label.config(text="")
         self.game_state = GameState.DRAW
         self.deck = Deck()
@@ -106,7 +110,25 @@ class GUI:
                 self.current_hand[i] = self.deck.dealOne()
 
         self.show_cards()
-        self.result_label.config(text=f"{self.analyzer.rank.name.replace("_", " ")}")
+
+        # Evaluate the final hand
+        rank, val = self.analyzer.evaluate_hand_fast(self.current_hand)
+        win_amount = self.analyzer.get_payout(rank, val)
+
+        # Display logic
+        rank_display = rank.name.replace("_", " ").title()
+
+        if win_amount > 0:
+            self.result_label.config(text=f"{rank_display} - WIN ${win_amount}!", fg="#ffcc00")
+        elif rank == HandRank.PAIR and val < 11:
+            self.result_label.config(text=f"Pair of {val}s (No Payout)", fg="white")
+        else:
+            self.result_label.config(text=rank_display, fg="white")
+
+        if win_amount > 0:
+            self.bankroll += win_amount
+
+        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
         self.reset_holds()
 
     def play_action(self):
