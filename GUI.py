@@ -18,8 +18,10 @@ class GUI:
         self.bankroll = 200
         self.holds = [False] * 5
         self.game_state = GameState.DEAL
+        self.analyzer = None
 
         # --- UI Elements ---
+        self.hand_rank = ""
         self._setup_ui()
 
     def _setup_ui(self):
@@ -56,6 +58,16 @@ class GUI:
             lbl.bind("<Button-1>", lambda event, i=i: self.toggle_hold(event, i))
             self.card_labels.append(lbl)
 
+        # 2.5 Result Display Area
+        self.result_label = tk.Label(
+            self.root,
+            text=f"{self.hand_rank}",
+            font=("Arial", 20, "bold"),
+            bg="#0a3d0a",
+            fg="#ffcc00"  # Gold color for that "Winner" feel
+        )
+        self.result_label.pack(pady=10)
+
         # 3. Button Area
         self.deal_button = tk.Button(
             self.root,
@@ -71,13 +83,19 @@ class GUI:
         for i, card in enumerate(self.current_hand):
             self.card_labels[i].config(text=f"{card.value.upper()}{card.suit.upper()}")
 
+    def analyze(self):
+        self.analyzer = HandAnalyzer(self.current_hand, self.deck.get_cards)
+        self.analyzer.analyze()
+
     def process_deal(self):
+        self.result_label.config(text="")
         self.game_state = GameState.DRAW
         self.deck = Deck()
         self.current_hand = [self.deck.dealOne() for _ in range(5)]
+        self.analyze()
         self.show_cards()
 
-    def reset_selection(self):
+    def reset_holds(self):
         self.holds = [False] * 5
         for lbl in self.card_labels:
             lbl.config(highlightbackground="#0a3d0a")
@@ -86,9 +104,10 @@ class GUI:
         for i, held in enumerate(self.holds):
             if not held:
                 self.current_hand[i] = self.deck.dealOne()
-            self.show_cards()
 
-        self.reset_selection()
+        self.show_cards()
+        self.result_label.config(text=f"{self.analyzer.rank.name.replace("_", " ")}")
+        self.reset_holds()
 
     def play_action(self):
         if self.game_state == GameState.DEAL:

@@ -261,63 +261,50 @@ class HandAnalyzer(object):
         results = []
 
         # 1. Safety Gate: Ensure we have combinations to analyze
-        # If self.all_possible_holds is empty, the loop won't run and causes an IndexError later.
         if not hasattr(self, 'all_possible_holds') or not self.all_possible_holds:
-            # Attempt to generate them if they are missing
-            if hasattr(self, 'generate_all_combinations'):
-                self.all_possible_holds = self.generate_all_combinations()
+            self.all_possible_holds = self.generate_all_combinations()
 
-            # If still empty, we cannot proceed
-            if not self.all_possible_holds:
-                print("!!! Critical Error: No hold combinations found in all_possible_holds.")
-                return
+        if not self.all_possible_holds:
+            print("!!! Critical Error: No hold combinations found.")
+            return
 
         # 2. Loop through every possible way to hold the cards (32 total)
         for move in self.all_possible_holds:
-            # Run the simulation/calculation for this hold
+            # Run the simulation for this specific hold
             ev, hit_rate, rank_counts = self.calculate_hold_ev(move["cards"])
 
-            held = move["cards"]
-            num_held = len(held)
-            suits = [c.suit for c in held]
+            # Calculate total samples to get accurate frequency percentages
+            sample_size = sum(rank_counts.values())
+            if sample_size == 0: continue
 
-            # --- START LIKELY RESULT (ml_name) LOGIC ---
+            # --- START LIKELY RESULT LOGIC ---
+            # Get the most frequent rank from the simulation results
+            most_common_rank, count = rank_counts.most_common(1)[0]
 
-            # A. Check if the held cards ALREADY form a winning hand (Pat Hand)
-            pat_rank, pat_val = self.evaluate_hand_fast(held)
-
-            if num_held == 5 and pat_rank != HandRank.HIGH_CARD:
-                ml_name = pat_rank.name.replace("_", " ").title()
-
-            # B. Check for strong Draws if we aren't holding a full hand
-            elif any(suits.count(s) == 4 for s in set(suits)):
-                ml_name = "4-Flush Draw"
-
-            elif any(len([c for c in held if c.value == v]) == 2 for v in
-                     set([c.value for c in held])) and num_held == 2:
-                ml_name = "Pair Draw"
-
-            elif any(suits.count(s) == 3 for s in set(suits)) and num_held == 3:
-                ml_name = "3-Flush Draw"
-
-            else:
-                # C. Fallback: Get most common win from rank_counts (excluding High Card)
-                winning_ranks = [r for r, count in rank_counts.most_common() if r != HandRank.HIGH_CARD]
+            # If the most common result is a Loss (High Card),
+            # we find the most frequent WINNING rank to show the user what they are "chasing."
+            if most_common_rank == HandRank.HIGH_CARD and len(rank_counts) > 1:
+                winning_ranks = [r for r in rank_counts if r != HandRank.HIGH_CARD]
                 if winning_ranks:
-                    ml_name = winning_ranks[0].name.replace("_", " ").title()
-                else:
-                    ml_name = "High Card"
+                    # Pick the winning rank with the highest count
+                    most_common_rank = max(winning_ranks, key=lambda r: rank_counts[r])
+
+            # Format the name for the UI (e.g., TWO_PAIR -> Two Pair)
+            ml_name = most_common_rank.name.replace("_", " ").title()
+
+            # Calculate the specific frequency for the identified 'most_common_rank'
+            specific_freq = rank_counts[most_common_rank] / sample_size
             # --- END LIKELY RESULT LOGIC ---
 
             results.append({
                 "mask": move["mask"],
-                "cards": held,
+                "cards": move["cards"],
                 "ev": float(ev),
-                "hit_rate": float(hit_rate),
+                "hit_rate": float(specific_freq),
                 "most_likely": ml_name
             })
 
-        # 3. Final Safety Gate and Sorting
+        # 3. Final Sorting
         if results:
             # Sort results by EV descending (Highest EV at Index 0)
             results.sort(key=lambda x: x["ev"], reverse=True)
@@ -326,7 +313,7 @@ class HandAnalyzer(object):
             self.best_move = results[0]
             self.best_ev = results[0]["ev"]
         else:
-            print("!!! Error: The analysis loop ran but produced zero results.")
+            print("!!! Error: The analysis loop produced zero results.")
             self.all_move_results = []
 
     # --- HELPER FUNCTIONS (Returning Tuples) ---
