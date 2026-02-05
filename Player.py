@@ -12,10 +12,15 @@ class Player:
         for card in self.cards:
             card.print_full()
 
-    def inject(self,cards_to_inject, deck):
+    def inject(self, cards_to_inject, deck):
         self.cards.clear()
         for c in cards_to_inject:
-            self.cards.append(Card.Card(c[1], c[0]))
+            # Input is "jh", "8h", etc.
+            val = c[0]  # 'j'
+            suit = c[1]  # 'h'
+            # IMPORTANT: Match your Card(suit, value) constructor exactly
+            self.cards.append(Card.Card(suit, val))
+
         deck.inject(self.cards)
 
     @property

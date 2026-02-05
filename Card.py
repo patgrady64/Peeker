@@ -9,6 +9,15 @@ class Card(object):
         self.int_suit_lookup = {"s": 1, "h": 2, "d": 3, "c": 4}
         self.full_suit_lookup = {"c": "Clubs", "s": "Spades", "h": "Hearts", "d": "Diamonds"}
 
+    def __repr__(self):
+        # Maps raw chars to clean display chars
+        display_values = {"t": "10", "j": "J", "q": "Q", "k": "K", "a": "A"}
+        display_suits = {"s": "♠", "h": "♥", "d": "♦", "c": "♣"}
+
+        v = display_values.get(self.value, self.value.upper())
+        s = display_suits.get(self.suit, self.suit.upper())
+        return f"{v}{s}"
+
     def print_full(self):
         print(f"{self.full_value_lookup[self.value]} of {self.full_suit_lookup[self.suit]}")
 

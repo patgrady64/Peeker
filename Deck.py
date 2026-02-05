@@ -13,14 +13,12 @@ class Deck(object):
                self.cards.append(Card.Card(s, v))
 
     def inject(self, cards_to_inject):
-        self.cards.clear()
-        self.new()
-        for card in cards_to_inject:
-            for check in self.cards:
-                if card.get_int_value == check.get_int_value and card.get_int_suit == check.get_int_suit:
-                    self.cards.remove(check)
+        self.new()  # Reset to 52
+        # Use a list comprehension to filter - it's much safer than .remove()
+        for target in cards_to_inject:
+            self.cards = [c for c in self.cards if not (c.value == target.value and c.suit == target.suit)]
 
-
+        print(f"DEBUG: Deck size after inject: {len(self.cards)}")  # This MUST say 47
 
     def shuffle(self):
         random.shuffle(self.cards)
