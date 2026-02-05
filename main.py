@@ -2,6 +2,8 @@ from Deck import Deck
 from Player import Player
 from HandAnalyzer import HandAnalyzer
 from VideoPokerSim import VideoPokerSim
+from GUI import GUI
+import tkinter as tk
 
 if __name__ == '__main__':
     deck = Deck()
@@ -13,7 +15,16 @@ if __name__ == '__main__':
     # analyzed.analyze()
 
     # Create the simulator, passing your classes in
-    sim = VideoPokerSim(Deck, initial_bankroll=200, bet_amount=1)
+    # sim = VideoPokerSim(Deck, initial_bankroll=200, bet_amount=1)
+    #
+    # # Run 500 hands
+    # sim.run_session(num_hands=500, silent=False)
 
-    # Run 500 hands
-    sim.run_session(num_hands=500, silent=False)
+    # Create the root Tkinter window
+    root = tk.Tk()
+
+    # Initialize our GUI object
+    app = GUI(root)
+
+    # Start the program loop
+    root.mainloop()
