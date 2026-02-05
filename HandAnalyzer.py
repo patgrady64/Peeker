@@ -213,7 +213,7 @@ class HandAnalyzer(object):
 
         # We'll use a sample limit to keep the speed snappy.
         # 10,000 is a sweet spot for accuracy vs. speed.
-        sample_limit = 10000
+        sample_limit = 2000
 
         actual_draws = []
 
