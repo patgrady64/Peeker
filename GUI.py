@@ -15,6 +15,7 @@ class GUI:
         self.deck = Deck()
         self.current_hand = []
         self.bankroll = 200
+        self.holds = [False] * 5
 
         # --- UI Elements ---
         self._setup_ui()
@@ -45,10 +46,13 @@ class GUI:
                 width=5,
                 height=3,
                 relief="raised",
-                bg="white"
+                bg="white",
+                highlightthickness=4,
+                highlightbackground="#0a3d0a"
             )
             lbl.grid(row=0, column=i, padx=10)
             self.card_labels.append(lbl)
+            lbl.bind("<Button-1>", lambda event, i=i: self.toggle_hold(event, i))
 
         # 3. Button Area
         self.deal_button = tk.Button(
@@ -73,3 +77,15 @@ class GUI:
             self.card_labels[i].config(text=display_text)
 
         print("Hand dealt successfully!")
+
+    def toggle_hold(self, event, i):
+        # 1. Flip the boolean (True becomes False, False becomes True)
+        self.holds[i] = not self.holds[i]
+
+        # 2. Update the visual border
+        if self.holds[i]:
+            self.card_labels[i].config(highlightbackground="lime")
+        else:
+            self.card_labels[i].config(highlightbackground="#0a3d0a")
+
+        print(f"Card {i} hold status: {self.holds[i]}")
