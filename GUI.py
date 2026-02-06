@@ -1,9 +1,13 @@
 import tkinter as tk
+import matplotlib.pyplot as plt
+
 from tkinter import messagebox
 from Deck import Deck
 from HandAnalyzer import HandAnalyzer
 from GameState import GameState
 from HandRank import HandRank
+from PayoutTable import PAYOUT_TABLE
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 class GUI:
@@ -20,29 +24,114 @@ class GUI:
         self.holds = [False] * 5
         self.game_state = GameState.DEAL
         self.analyzer = None
-        self.hand_count = 0
+        self.current_bet = 0
+        self.max_bet_limit = 5
+        self.bankroll_history = [200]
 
         # --- UI Elements ---
         self.hand_rank = ""
         self._setup_ui()
+        self._setup_payout_table()
+
+    def _setup_dashboard(self):
+        self.dashboard_frame = tk.Frame(self.game_area, bg="#0a3d0a")
+        self.dashboard_frame.pack(pady=10, fill="both", expand=True)
+
+        # Stats Row
+        self.stats_frame = tk.Frame(self.dashboard_frame, bg="#0a3d0a")
+        self.stats_frame.pack(fill="x")
+
+        # Hands Played Counter
+        self.hands_lbl = tk.Label(self.stats_frame, text="HANDS: 0", font=("Courier", 12, "bold"), bg="#0a3d0a",
+                                  fg="#ffcc00")
+        self.hands_lbl.pack(side="left", padx=20)
+
+        # Win/Loss Percentage
+        self.profit_lbl = tk.Label(self.stats_frame, text="PROFIT: $0", font=("Courier", 12, "bold"), bg="#0a3d0a",
+                                   fg="white")
+        self.profit_lbl.pack(side="right", padx=20)
+
+        # Matplotlib Plot below stats
+        self.fig, self.ax = plt.subplots(figsize=(6, 2.5), dpi=100)
+        self.fig.patch.set_facecolor('#0a3d0a')
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.dashboard_frame)
+        self.canvas.get_tk_widget().pack()
+        self.update_graph()
+
+    def update_payout_display(self):
+        # Use PAYOUT_TABLE instead of PAYOUT_BASE
+        for rank, base_val in PAYOUT_TABLE.items():
+            if rank == HandRank.HIGH_CARD:
+                continue
+
+            # Calculation logic
+            win = base_val * self.current_bet
+
+            # Standard Video Poker: Royal Flush bonus at Max Bet (5 coins)
+            if rank == HandRank.ROYAL_FLUSH and self.current_bet == 5:
+                win = 4000
+
+            # Update the specific labels for this rank
+            if rank in self.payout_rows:
+                self.payout_rows[rank][1].config(text=str(win))
 
     def _setup_ui(self):
-        """Initializes the visual components."""
-        # 1. Top Title / Bankroll Area
+        """Initializes the visual components with a sidebar layout."""
+        # 1. Main Container (Splits the window into Left and Right)
+        self.main_container = tk.Frame(self.root, bg="#0a3d0a")
+        self.main_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # 2. Left Side: Game Area (Bankroll, Cards, Controls)
+        self.game_area = tk.Frame(self.main_container, bg="#0a3d0a")
+        self.game_area.pack(side="left", fill="both", expand=True)
+
+        # 3. Right Side: Payout Area (The Sidebar)
+        self.payout_area = tk.Frame(
+            self.main_container,
+            bg="#072b07",
+            highlightthickness=2,
+            highlightbackground="#ffcc00",
+            padx=10,
+            pady=10
+        )
+        self.payout_area.pack(side="right", padx=(10, 0), anchor="n")
+
+        # --- FILL THE GAME AREA (Left) ---
+
+        # Bankroll Display
         self.header_label = tk.Label(
-            self.root,
+            self.game_area,
             text=f"Bankroll: ${self.bankroll}",
-            font=("Arial", 18, "bold"),
+            font=("Arial", 22, "bold"),
             bg="#0a3d0a",
             fg="white"
         )
-        self.header_label.pack(pady=20)
+        self.header_label.pack(pady=10)
 
-        # 2. Card Display Area (A Frame to hold 5 cards)
-        self.card_frame = tk.Frame(self.root, bg="#0a3d0a")
-        self.card_frame.pack(pady=50)
+        # Bet Control Row
+        self.bet_frame = tk.Frame(self.game_area, bg="#0a3d0a")
+        self.bet_frame.pack(pady=5)
 
-        # Let's create 5 placeholders for cards
+        self.btn_less = tk.Button(self.bet_frame, text="←", command=lambda: self.change_bet(-1),
+                                  font=("Arial", 12, "bold"), width=3, bg="#444", fg="white")
+        self.btn_less.grid(row=0, column=0, padx=5)
+
+        self.bet_label = tk.Label(self.bet_frame, text=f"BET: {self.current_bet}",
+                                  font=("Arial", 14, "bold"), bg="#0a3d0a", fg="white", width=8)
+        self.bet_label.grid(row=0, column=1, padx=5)
+
+        self.btn_more = tk.Button(self.bet_frame, text="→", command=lambda: self.change_bet(1),
+                                  font=("Arial", 12, "bold"), width=3, bg="#444", fg="white")
+        self.btn_more.grid(row=0, column=2, padx=5)
+
+        self.btn_max = tk.Button(self.bet_frame, text="MAX BET", command=self.set_max_bet,
+                                 font=("Arial", 10, "bold"), bg="#cc0000", fg="white")
+        self.btn_max.grid(row=0, column=3, padx=15)
+
+        # Card Display Area
+        self.card_frame = tk.Frame(self.game_area, bg="#0a3d0a")
+        self.card_frame.pack(pady=30)
+
         self.card_labels = []
         for i in range(5):
             lbl = tk.Label(
@@ -56,30 +145,112 @@ class GUI:
                 highlightthickness=4,
                 highlightbackground="#0a3d0a"
             )
-            lbl.grid(row=0, column=i, padx=10)
+            lbl.grid(row=0, column=i, padx=5)
             lbl.bind("<Button-1>", lambda event, i=i: self.toggle_hold(event, i))
             self.card_labels.append(lbl)
 
-        # 2.5 Result Display Area
+        # Result Display Area
         self.result_label = tk.Label(
-            self.root,
-            text=f"{self.hand_rank}",
+            self.game_area,
+            text="",
             font=("Arial", 20, "bold"),
             bg="#0a3d0a",
-            fg="#ffcc00"  # Gold color for that "Winner" feel
+            fg="#ffcc00"
         )
         self.result_label.pack(pady=10)
 
-        # 3. Button Area
+        # Action Button (DEAL/DRAW)
         self.deal_button = tk.Button(
-            self.root,
+            self.game_area,
             text="DEAL",
             command=self.play_action,
-            font=("Arial", 14, "bold"),
+            font=("Arial", 16, "bold"),
             width=15,
+            height=2,
             bg="#ffcc00"
         )
-        self.deal_button.pack(pady=20)
+        self.deal_button.pack(pady=10)
+        self._setup_dashboard()
+
+        # --- FILL THE PAYOUT AREA (Right) ---
+        self._setup_payout_table()
+
+    def _setup_payout_table(self):
+        """Creates a clean, single-list vertical pay table."""
+        # Clear the area first to prevent duplicates if called again
+        for widget in self.payout_area.winfo_children():
+            widget.destroy()
+
+        self.payout_rows = {}
+
+        # Header Label
+        tk.Label(self.payout_area, text="PAY TABLE", font=("Arial", 12, "bold"),
+                 bg="#072b07", fg="#ffcc00").pack(pady=(0, 10))
+
+        # Filter and Sort: Ensure we only iterate through the actual winning hands
+        winning_ranks = [r for r in PAYOUT_TABLE.keys() if r != HandRank.HIGH_CARD]
+
+        for rank in winning_ranks:
+            row_frame = tk.Frame(self.payout_area, bg="#072b07")
+            row_frame.pack(fill="x", pady=3)
+
+            name_lbl = tk.Label(
+                row_frame,
+                text=rank.name.replace("_", " ").title(),
+                font=("Arial", 10, "bold"),
+                bg="#072b07",
+                fg="#aaa",
+                width=14,  # Reduced from 16
+                anchor="w"
+            )
+            name_lbl.pack(side="left")
+
+            val_lbl = tk.Label(
+                row_frame,
+                text="0",
+                font=("Arial", 10, "bold"),
+                bg="#072b07",
+                fg="#aaa",
+                width=8,  # Increased from 6
+                anchor="e"
+            )
+            val_lbl.pack(side="right")
+
+            self.payout_rows[rank] = [name_lbl, val_lbl]
+
+        self.update_payout_display()
+
+    def highlight_win(self, hand_rank_enum):
+        """Highlights the winning row in the pay table."""
+        # 1. Reset all rows to the sidebar's dark background
+        for labels in self.payout_rows.values():
+            for lbl in labels:
+                lbl.config(bg="#072b07", fg="#aaa")
+
+        # 2. Highlight the specific rank in Gold
+        if hand_rank_enum in self.payout_rows:
+            for lbl in self.payout_rows[hand_rank_enum]:
+                lbl.config(bg="#ffcc00", fg="black")
+
+    def change_bet(self, amount):
+        """Increases or decreases the bet between 1 and 5."""
+        if self.game_state == GameState.DEAL:  # Only allow betting before the hand starts
+            new_bet = self.current_bet + amount
+            if 1 <= new_bet <= self.max_bet_limit:
+                self.current_bet = new_bet
+                self.bet_label.config(text=f"BET: {self.current_bet}")
+                self.update_payout_display()
+
+    def set_max_bet(self):
+        """Instantly sets bet to 5 and starts the game."""
+        if self.game_state == GameState.DEAL:
+            self.current_bet = self.max_bet_limit
+            self.bet_label.config(text=f"BET: {self.current_bet}")
+            self.update_payout_display()
+            self.process_deal()
+            # Update the main button to say DRAW
+            self.deal_button.config(text="DRAW")
+            self.game_state = GameState.DRAW
 
     def show_cards(self):
         for i, card in enumerate(self.current_hand):
@@ -90,46 +261,131 @@ class GUI:
         self.analyzer.analyze()
 
     def process_deal(self):
-        self.bankroll -= 1
+        self.bankroll -= self.current_bet
         self.header_label.config(text=f"Bankroll: ${self.bankroll}")
         self.result_label.config(text="")
         self.game_state = GameState.DRAW
+
+        # FIX: Reset to the correct DARK background color of the sidebar
+        for labels in self.payout_rows.values():
+            for lbl in labels:
+                lbl.config(bg="#072b07", fg="#aaa")
+
         self.deck = Deck()
         self.current_hand = [self.deck.dealOne() for _ in range(5)]
         self.analyze()
         self.show_cards()
 
-    def reset_holds(self):
-        self.holds = [False] * 5
-        for lbl in self.card_labels:
-            lbl.config(highlightbackground="#0a3d0a")
-
     def process_draw(self):
+        """Finalizes the hand, calculates winnings, and updates the dashboard."""
+        # 1. Replace cards that were not 'held'
         for i, held in enumerate(self.holds):
             if not held:
                 self.current_hand[i] = self.deck.dealOne()
 
         self.show_cards()
 
-        # Evaluate the final hand
+        # 2. Evaluate the final hand using the analyzer
         rank, val = self.analyzer.evaluate_hand_fast(self.current_hand)
-        win_amount = self.analyzer.get_payout(rank, val)
 
-        # Display logic
+        # 3. Calculate Payout (Base Payout * Current Bet)
+        base_payout = self.analyzer.get_payout(rank, val)
+        win_amount = base_payout * self.current_bet
+
+        # Special Case: Royal Flush Max Bet Bonus
+        if rank == HandRank.ROYAL_FLUSH and self.current_bet == 5:
+            win_amount = 4000
+
+        # 4. Update Bankroll and UI Labels
         rank_display = rank.name.replace("_", " ").title()
 
         if win_amount > 0:
             self.result_label.config(text=f"{rank_display} - WIN ${win_amount}!", fg="#ffcc00")
+            self.bankroll += win_amount
+            self.highlight_win(rank)
         elif rank == HandRank.PAIR and val < 11:
-            self.result_label.config(text=f"Pair of {val}s (No Payout)", fg="white")
+            # Show the rank but clarify it's not a 'Jacks or Better' winner
+            self.result_label.config(text=f"Pair of {val}s (Low)", fg="white")
         else:
             self.result_label.config(text=rank_display, fg="white")
 
-        if win_amount > 0:
-            self.bankroll += win_amount
-
+        # Update the main Bankroll text
         self.header_label.config(text=f"Bankroll: ${self.bankroll}")
+
+        # 5. --- DATA DASHBOARD UPDATES ---
+        # Track history for the graph
+        self.bankroll_history.append(self.bankroll)
+
+        # Update the live text stats (Hands Played and Profit/Loss)
+        total_hands = len(self.bankroll_history) - 1
+        profit = self.bankroll - 200  # Assuming 200 is starting bankroll
+        profit_color = "#00ff00" if profit >= 0 else "#ff3333"
+
+        if hasattr(self, 'hands_lbl'):
+            self.hands_lbl.config(text=f"HANDS: {total_hands}")
+        if hasattr(self, 'profit_lbl'):
+            self.profit_lbl.config(text=f"PROFIT: ${profit}", fg=profit_color)
+
+        # Redraw the neon graph
+        self.update_graph()
+
+        # 6. Clean up for next hand
         self.reset_holds()
+        self.check_game_over()
+
+    def reset_holds(self):
+        """Clears all hold selections and resets card borders to the background color."""
+        self.holds = [False] * 5
+        for lbl in self.card_labels:
+            # Set this to match your card_frame background color
+            lbl.config(highlightbackground="#0a3d0a")
+
+    def update_graph(self):
+        self.ax.clear()
+
+        # Data points
+        data = self.bankroll_history
+        x = range(len(data))
+
+        # Color logic: Green if current bankroll > start (200), Red if below
+        current_color = "#00ff00" if data[-1] >= 200 else "#ff3333"
+
+        # 1. Plot the main line with a "neon" glow effect
+        self.ax.plot(x, data, color=current_color, linewidth=3, zorder=5)
+        self.ax.plot(x, data, color=current_color, linewidth=8, alpha=0.1, zorder=4)  # Outer glow
+
+        # 2. Fill with a gradient effect
+        self.ax.fill_between(x, data, 0, color=current_color, alpha=0.1)
+
+        # 3. Add a "Current Position" marker
+        self.ax.scatter(x[-1], data[-1], color="white", s=50, edgecolors=current_color, zorder=6)
+
+        # 4. Fixed Axis & Baseline
+        current_max = max(max(data), 300)
+        self.ax.set_ylim(0, current_max + 20)
+        self.ax.axhline(200, color='white', linestyle=':', alpha=0.4, label="Break Even")
+
+        # Formatting
+        self.ax.set_title("SESSION VOLATILITY", color='#ffcc00', fontsize=12, fontweight='bold', pad=10)
+        self.ax.set_facecolor('#072b07')
+        self.ax.tick_params(colors='white', labelsize=8)
+        self.ax.grid(True, color='#0a3d0a', alpha=0.3)
+
+        # Remove border box for a "HUD" look
+        for spine in self.ax.spines.values():
+            spine.set_visible(False)
+
+        self.canvas.draw()
+
+    def check_game_over(self):
+        """Checks if the player has enough money to continue."""
+        # If they are out of money
+        if self.bankroll <= 0:
+            self.result_label.config(text="GAME OVER - OUT OF CREDITS", fg="red")
+            self.deal_button.config(state="disabled", bg="#333")
+            messagebox.showinfo("Game Over", "You've run out of credits! Please restart to play again.")
+            return True
+        return False
 
     def play_action(self):
         if self.game_state == GameState.DEAL:
