@@ -197,43 +197,43 @@ class HandAnalyzer(object):
         return PAYOUT_TABLE.get(hand_rank, 0)
 
     def calculate_hold_ev(self, held_cards):
+        """
+        Calculates the Expected Value (EV) for a specific set of held cards.
+        Uses exact math for small draw sizes and sampling for large draw sizes.
+        """
         import random
         from collections import Counter
         from math import comb
+        import itertools
 
         num_to_draw = 5 - len(held_cards)
         deck_pool = list(self.remaining_deck)
 
-        # Calculate how many possible combinations exist
+        # 1. Determine total possible combinations for this specific draw
         total_combinations = comb(len(deck_pool), num_to_draw)
 
-        # We'll use a sample limit to keep the speed snappy.
-        # 10,000 is a sweet spot for accuracy vs. speed.
-        sample_limit = 2000
-
-        actual_draws = []
-
-        if total_combinations <= sample_limit:
-            # If the total combinations are small (e.g., holding 3 or 4 cards),
-            # calculate EVERY possibility for 100% accuracy.
-            import itertools
+        # 2. DECISION LOGIC: Exact Math vs. Statistical Sampling
+        # If total combinations are 20,000 or less, we calculate EVERYTHING for 100% accuracy.
+        # This covers: Holding 4 cards (47 combos), 3 cards (1,081 combos), or 2 cards (16,215 combos).
+        if total_combinations <= 20000:
             actual_draws = list(itertools.combinations(deck_pool, num_to_draw))
         else:
-            # For large draws (holding 0, 1, or 2 cards), take a random sample.
-            # This prevents "ordering bias" from the deck's initial state.
-            for _ in range(sample_limit):
-                actual_draws.append(random.sample(deck_pool, num_to_draw))
+            # For holding 0 or 1 card, there are millions of combos.
+            # 10,000 random samples is the industry standard for high accuracy.
+            sample_limit = 10000
+            actual_draws = [random.sample(deck_pool, num_to_draw) for _ in range(sample_limit)]
 
         sample_size = len(actual_draws)
         local_total_payout = 0
         local_hits = 0
         local_rank_counts = Counter()
 
+        # 3. Simulation Loop
         for draw in actual_draws:
-            # Combine held cards with the sampled draw
+            # Combine held cards with the sampled/calculated draw
             full_hand = held_cards + list(draw)
 
-            # Use your fast evaluation method
+            # Evaluate the hand rank and find its payout
             rank_enum, rank_val = self.evaluate_hand_fast(full_hand)
             payout = self.get_payout(rank_enum, rank_val)
 
@@ -243,7 +243,8 @@ class HandAnalyzer(object):
             local_rank_counts[rank_enum] += 1
             local_total_payout += payout
 
-        # Final Math
+        # 4. Final Math Calculations
+        # EV = (Total Payout / Total Samples)
         ev = local_total_payout / sample_size if sample_size > 0 else 0
         hit_rate = local_hits / sample_size if sample_size > 0 else 0
 

@@ -21,6 +21,7 @@ class GUI:
         # --- Game Logic Objects ---
         self.deck = Deck()
         self.current_hand = []
+        self.starting_bankroll = 200
         self.bankroll = 200
         self.holds = [False] * 5
         self.game_state = GameState.DEAL
@@ -225,6 +226,39 @@ class GUI:
                                    font=("Arial", 9), bg="#051c05", fg="white")
         self.streak_lbl.pack(anchor="w", pady=2)
 
+        # --- Sidebar Strategy & History (Bottom Right) ---
+        self.strategy_frame = tk.Frame(
+            self.payout_area,
+            bg="#051c05",
+            highlightthickness=1,
+            highlightbackground="#444",
+            padx=5,
+            pady=5
+        )
+        # side="bottom" ensures it stays below the payout rows
+        self.strategy_frame.pack(side="bottom", fill="both", expand=True, pady=(20, 0))
+
+        tk.Label(
+            self.strategy_frame,
+            text="STRATEGY ADVISOR",
+            font=("Arial", 10, "bold"),
+            bg="#051c05",
+            fg="#ffcc00"
+        ).pack(anchor="w")
+
+        # The Log Box
+        self.history_list = tk.Listbox(
+            self.strategy_frame,
+            bg="#051c05",
+            fg="#ffffff",
+            font=("Courier", 9),
+            borderwidth=0,
+            highlightthickness=0,
+            height=10,  # Adjust height to fill the green space
+            selectbackground="#051c05"
+        )
+        self.history_list.pack(fill="both", expand=True, pady=5)
+
     def _setup_payout_table(self):
         for widget in self.payout_area.winfo_children():
             widget.destroy()
@@ -410,45 +444,94 @@ class GUI:
         self.show_cards(0)
 
     def process_draw(self):
-        """Phase 1: Replace cards and start the show."""
-        # 1. Logic for replacing cards
+        """
+        Phase 1 of the Draw:
+        1. Captures player choices for the Advisor.
+        2. Replaces unheld cards.
+        3. Starts the visual 'flip' animation.
+        4. Schedules the final scoring.
+        """
+        # 1. CAPTURE HOLDS: Save player's choices for the History Log
+        # We do this before cards are replaced and holds are reset.
+        self.last_player_holds = self.holds[:]
+
+        # 2. LOGIC: Replace cards that were NOT held
         for i, held in enumerate(self.holds):
             if not held:
+                # Replace card in the hand with a new one from the deck
                 self.current_hand[i] = self.deck.dealOne()
 
-        # 2. Start the flip animation
+        # 3. VISUALS: Turn cards face-down briefly or start reveal
+        # If any card is not held, we indicate it's being drawn
+        self.result_label.config(text="DRAWING...", fg="white")
+
+        # 4. ANIMATION: Start the recursive reveal for the 5 card slots
         self.animate_draw(0)
 
-        # 3. Wait for animation (150ms * 5 cards + buffer) before showing results
+        # 5. SCORE DELAY: Wait for the cards to finish flipping (approx 800ms)
+        # then call the big reveal/payout logic.
         self.root.after(800, self.finish_hand_logic)
 
     def finish_hand_logic(self):
-        """Phase 2: The 'Big Reveal' of the score, money, and session stats."""
-        # 1. Evaluate the final hand
+        """Phase 2: Evaluation, Strategy Advisor update, and UI cleanup."""
+        # 1. Evaluate final hand
         rank, val = self.analyzer.evaluate_hand_fast(self.current_hand)
+        rank_display = rank.name.replace("_", " ").title()
 
-        # 2. Calculate Payout
+        # 2. Payouts
         base_payout = self.analyzer.get_payout(rank, val)
         win_amount = base_payout * self.current_bet
 
-        # Standard Video Poker: Royal Flush bonus at Max Bet (5 coins)
+        # Royal Flush Max Bet Bonus
         if rank == HandRank.ROYAL_FLUSH and self.current_bet == 5:
             win_amount = 4000
 
-        rank_display = rank.name.replace("_", " ").title()
+        # 3. Strategy Advisor (Parse Mask + Symbols)
+        best_data = self.analyzer.best_move
+        best_mask_str = best_data.get('mask', '00000')
+        best_indices = [i for i, bit in enumerate(best_mask_str) if bit == '1']
 
-        # 3. Update Bankroll and Result Label
+        symbols = {'s': '♠', 'h': '♥', 'd': '♦', 'c': '♣'}
+
+        if len(best_indices) == 5:
+            move_txt = "Hold All"
+        elif not best_indices:
+            move_txt = "Discard All"
+        else:
+            cards_str = []
+            for idx in best_indices:
+                c = self.current_hand[idx]
+                v = "10" if c.value == 't' else c.value.upper()
+                s = symbols.get(c.suit.lower(), c.suit)
+                cards_str.append(f"{v}{s}")
+            move_txt = "Hold " + " ".join(cards_str)
+
+        # Comparison Logic
+        player_indices = [i for i, h in enumerate(self.last_player_holds) if h]
+        is_correct = set(player_indices) == set(best_indices)
+
+        # Log to Sidebar Strategy List
+        icon = "[✓]" if is_correct else "[!]"
+        log_entry = f"{icon} {rank_display[:8]} | {move_txt}"
+
+        if hasattr(self, 'history_list'):
+            self.history_list.insert(0, log_entry)
+            self.history_list.itemconfig(0, fg="#00ff00" if is_correct else "#ffaa00")
+            if self.history_list.size() > 12:
+                self.history_list.delete(12)
+
+        # 4. Handle Bankroll and Result Label
         if win_amount > 0:
             self.result_label.config(text=f"{rank_display} - WIN ${win_amount}!", fg="#ffcc00")
             self.bankroll += win_amount
 
-            # Update Session Summary
+            # Update Best Win
             if win_amount > self.best_win:
                 self.best_win = win_amount
-                self.best_win_lbl.config(text=f"BEST WIN: ${self.best_win}")
+                if hasattr(self, 'best_win_lbl'):
+                    self.best_win_lbl.config(text=f"BEST WIN: ${self.best_win}")
 
-            self.last_win_lbl.config(text=f"LAST: {rank_display}")
-
+            # Update Win Streak
             if self.current_streak < 0: self.current_streak = 0
             self.current_streak += 1
             self.streak_lbl.config(text=f"STREAK: {self.current_streak} Wins", fg="#00ff00")
@@ -459,32 +542,34 @@ class GUI:
             else:
                 self.highlight_win(rank)
         else:
-            # Handle Losing Hand
+            # Handle Loss
             self.result_label.config(text=rank_display, fg="white")
-
             if self.current_streak > 0: self.current_streak = 0
             self.current_streak -= 1
             self.streak_lbl.config(text=f"STREAK: {abs(self.current_streak)} Losses", fg="#ff3333")
 
-        # --- IMPORTANT: THE PART BELOW WAS MISSING IN YOUR CODE ---
-
-        # 4. Update Main HUD & Graph
-        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
+        # 5. Update HUD (Critical Profit/Hand Count Fix)
+        # Update bankroll history first
         self.bankroll_history.append(self.bankroll)
 
+        # Calculate stats
         total_hands = len(self.bankroll_history) - 1
-        profit = self.bankroll - 200
+        profit = self.bankroll - 200  # Assumes 200 is start. Use self.starting_bankroll if defined.
+
+        # Update UI
+        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
 
         if hasattr(self, 'hands_lbl'):
             self.hands_lbl.config(text=f"HANDS: {total_hands}")
+
         if hasattr(self, 'profit_lbl'):
-            self.profit_lbl.config(text=f"PROFIT: ${profit}",
-                                   fg="#00ff00" if profit >= 0 else "#ff3333")
+            color = "#00ff00" if profit >= 0 else "#ff3333"
+            prefix = "+" if profit > 0 else ""
+            self.profit_lbl.config(text=f"PROFIT: {prefix}${profit}", fg=color)
 
         self.update_graph()
-        self.deal_button.config(state=tk.NORMAL)
 
-        # 5. Reset for Next Hand
+        # 6. Cleanup for Next Hand
         self.reset_holds()
         if not self.check_game_over():
             self.game_state = GameState.DEAL
@@ -610,3 +695,20 @@ class GUI:
         else:
             # Ensure it ends on white
             self.bet_label.config(fg="white")
+
+    def reset_session(self):
+        """Resets all session statistics and bankroll."""
+        self.bankroll = 200
+        self.bankroll_history = [200]
+        self.best_win = 0
+        self.current_streak = 0
+
+        # Update UI Labels
+        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
+        if hasattr(self, 'hands_lbl'): self.hands_lbl.config(text="HANDS: 0")
+        if hasattr(self, 'profit_lbl'): self.profit_lbl.config(text="PROFIT: $0", fg="#00ff00")
+        if hasattr(self, 'best_win_lbl'): self.best_win_lbl.config(text="BEST WIN: $0")
+        if hasattr(self, 'history_list'): self.history_list.delete(0, tk.END)
+
+        self.update_graph()
+        self.result_label.config(text="SESSION RESET", fg="white")
