@@ -15,8 +15,8 @@ class GUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Peeker")
-        self.root.geometry("800x600")
-        self.root.configure(bg="#0a3d0a")  # Classic Casino Green
+        self.root.geometry("1150x800")
+        self.root.configure(bg="#0a3d0a")
 
         # --- Game Logic Objects ---
         self.deck = Deck()
@@ -25,7 +25,7 @@ class GUI:
         self.holds = [False] * 5
         self.game_state = GameState.DEAL
         self.analyzer = None
-        self.current_bet = 0
+        self.current_bet = 1
         self.max_bet_limit = 5
         self.bankroll_history = [200]
         self.card_images = {}
@@ -34,12 +34,13 @@ class GUI:
         self.hand_rank = ""
         self._setup_ui()
         self._setup_payout_table()
+        self.update_payout_display()
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def _setup_dashboard(self):
         self.dashboard_frame = tk.Frame(self.game_area, bg="#0a3d0a")
-        self.dashboard_frame.pack(pady=10, fill="both", expand=True)
+        self.dashboard_frame.pack(side="bottom", pady=(10, 30), fill="x")
 
         # Stats Row
         self.stats_frame = tk.Frame(self.dashboard_frame, bg="#0a3d0a")
@@ -174,11 +175,12 @@ class GUI:
         self.result_label = tk.Label(
             self.game_area,
             text="",
-            font=("Arial", 20, "bold"),
+            font=("Arial", 24, "bold"),  # Made slightly larger for impact
             bg="#0a3d0a",
-            fg="#ffcc00"
+            fg="#ffcc00",
+            height=2  # Give it a fixed height so it doesn't "jump" when text appears
         )
-        self.result_label.pack(pady=10)
+        self.result_label.pack(pady=5)
 
         # Action Button (DEAL/DRAW)
         self.deal_button = tk.Button(
@@ -198,31 +200,28 @@ class GUI:
         self._setup_payout_table()
 
     def _setup_payout_table(self):
-        """Creates a clean, single-list vertical pay table."""
-        # Clear the area first to prevent duplicates if called again
         for widget in self.payout_area.winfo_children():
             widget.destroy()
 
         self.payout_rows = {}
 
-        # Header Label
-        tk.Label(self.payout_area, text="PAY TABLE", font=("Arial", 12, "bold"),
-                 bg="#072b07", fg="#ffcc00").pack(pady=(0, 10))
+        tk.Label(self.payout_area, text="PAY TABLE", font=("Arial", 14, "bold"),
+                 bg="#072b07", fg="#ffcc00").pack(pady=(0, 15))
 
-        # Filter and Sort: Ensure we only iterate through the actual winning hands
         winning_ranks = [r for r in PAYOUT_TABLE.keys() if r != HandRank.HIGH_CARD]
 
         for rank in winning_ranks:
             row_frame = tk.Frame(self.payout_area, bg="#072b07")
-            row_frame.pack(fill="x", pady=3)
+            row_frame.pack(fill="x", pady=2)
 
+            # Restored labels with more width and clearer colors
             name_lbl = tk.Label(
                 row_frame,
                 text=rank.name.replace("_", " ").title(),
-                font=("Arial", 10, "bold"),
+                font=("Arial", 11, "bold"),
                 bg="#072b07",
-                fg="#aaa",
-                width=14,  # Reduced from 16
+                fg="#ffffff",  # Changed to white so it's visible
+                width=22,  # Wider to prevent cutting off
                 anchor="w"
             )
             name_lbl.pack(side="left")
@@ -230,17 +229,15 @@ class GUI:
             val_lbl = tk.Label(
                 row_frame,
                 text="0",
-                font=("Arial", 10, "bold"),
+                font=("Arial", 11, "bold"),
                 bg="#072b07",
-                fg="#aaa",
-                width=8,  # Increased from 6
+                fg="#ffcc00",  # Changed to gold for the numbers
+                width=12,
                 anchor="e"
             )
             val_lbl.pack(side="right")
 
             self.payout_rows[rank] = [name_lbl, val_lbl]
-
-        self.update_payout_display()
 
     def highlight_win(self, hand_rank_enum):
         """Highlights the winning row in the pay table."""
@@ -269,14 +266,25 @@ class GUI:
                     self.deal_button.config(bg="#555", fg="#888")
 
     def set_max_bet(self):
+        """Instantly sets bet to 5 and starts the game."""
         if self.game_state == GameState.DEAL:
             self.current_bet = self.max_bet_limit
             self.bet_label.config(text=f"BET: {self.current_bet}")
             self.update_payout_display()
 
-            # Instantly enable and trigger the deal
+            # 1. CLEAR OLD RESULTS: Make it look fresh
+            self.result_label.config(text="MAX BET DEAL...", fg="white")
+
+            # 2. RESET PAYTABLE: Remove old winning highlights
+            for labels in self.payout_rows.values():
+                for lbl in labels:
+                    lbl.config(bg="#072b07", fg="#aaa")
+
+            # 3. ENABLE BUTTON: Ensure it's active for the click
             self.deal_button.config(state=tk.NORMAL, bg="#ffcc00", fg="black")
-            self.play_action()  # This will call process_deal
+
+            # 4. START: Trigger the deal
+            self.play_action()
 
     def get_card_image(self, card_name):
         """Loads 'as.png', 'kd.png', etc."""
@@ -298,113 +306,142 @@ class GUI:
             print(f"File not found: {path}")
             return None
 
-    def show_cards(self):
-        for i, card in enumerate(self.current_hand):
-            # Format to 'as', 'kd', etc. to match your files
+    def show_cards(self, index=0):
+        if index < len(self.current_hand):
+            card = self.current_hand[index]
             card_name = f"{card.value}{card.suit}".lower()
             img = self.get_card_image(card_name)
-
             if img:
-                # IMPORTANT: Set text to "" to remove the '4S' ghosting
-                self.card_labels[i].config(image=img, text="")
-                self.card_labels[i].image = img
-            else:
-                # Fallback if image is missing
-                self.card_labels[i].config(text=card_name.upper(), image="")
+                self.card_labels[index].config(image=img, text="")
+                self.card_labels[index].image = img
+            # This MUST be inside the 'if index' block
+            self.root.after(150, lambda: self.show_cards(index + 1))
 
+    def animate_draw(self, index=0):
+        if index < 5:
+            if not self.holds[index]:
+                # 1. Briefly show the back to simulate the card being replaced
+                back_img = self.get_card_image("back_green")
+                self.card_labels[index].config(image=back_img)
+
+                # 2. Wait a tiny bit, then show the actual new card
+                self.root.after(100, lambda: self.reveal_single_card(index))
+            else:
+                self.animate_draw(index + 1)
+
+    def reveal_single_card(self, index):
+        """Helper to reveal the card and move to the next one."""
+        card = self.current_hand[index]
+        card_name = f"{card.value}{card.suit}".lower()
+        img = self.get_card_image(card_name)
+        self.card_labels[index].config(image=img)
+        self.card_labels[index].image = img
+
+        # Move to next card
+        self.animate_draw(index + 1)
 
     def analyze(self):
         self.analyzer = HandAnalyzer(self.current_hand, self.deck.get_cards)
         self.analyzer.analyze()
 
+    def reset_to_backs(self):
+        """Instantly turns all cards face-down to the green back image."""
+        back_img = self.get_card_image("back_green")
+        if back_img:
+            for lbl in self.card_labels:
+                lbl.config(image=back_img, text="")
+                lbl.image = back_img
+
     def process_deal(self):
-        # Check if the player is trying to play for free!
+        # 1. Safety Checks
         if self.current_bet == 0:
             self.flash_bet_label()
-            # Optional: Add a subtle status message instead of a popup
             self.result_label.config(text="PLACE A BET FIRST", fg="#ff3333")
             return
 
-        # Check if they have enough money for the bet
         if self.bankroll < self.current_bet:
-            messagebox.showerror("Insufficent Funds", "You don't have enough credits for that bet!")
+            messagebox.showerror("Insufficient Funds", "You don't have enough credits!")
             return
 
-        # --- If checks pass, proceed with the game ---
-        self.bankroll -= self.current_bet
-        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
-
-        # ... rest of your existing logic ...
+        # 2. Reset UI for New Hand
         self.result_label.config(text="")
-        self.game_state = GameState.DRAW
-        # ... etc ...
-
-        # FIX: Reset to the correct DARK background color of the sidebar
+        self.reset_to_backs()
         for labels in self.payout_rows.values():
             for lbl in labels:
                 lbl.config(bg="#072b07", fg="#aaa")
 
+        # 3. Handle Money
+        self.bankroll -= self.current_bet
+        self.header_label.config(text=f"Bankroll: ${self.bankroll}")
+
+        # 4. Logic & State Change
+        self.game_state = GameState.DRAW
         self.deck = Deck()
         self.current_hand = [self.deck.dealOne() for _ in range(5)]
         self.analyze()
-        self.show_cards()
+
+        # 5. Start Animation
+        self.show_cards(0)
 
     def process_draw(self):
-        """Finalizes the hand, calculates winnings, and updates the dashboard."""
-        # 1. Replace cards that were not 'held'
+        """Phase 1: Replace cards and start the show."""
+        # 1. Logic for replacing cards
         for i, held in enumerate(self.holds):
             if not held:
                 self.current_hand[i] = self.deck.dealOne()
 
-        self.show_cards()
+        # 2. Start the flip animation
+        self.animate_draw(0)
 
-        # 2. Evaluate the final hand using the analyzer
+        # 3. Wait for animation (150ms * 5 cards + buffer) before showing results
+        self.root.after(800, self.finish_hand_logic)
+
+    def finish_hand_logic(self):
         rank, val = self.analyzer.evaluate_hand_fast(self.current_hand)
-
-        # 3. Calculate Payout (Base Payout * Current Bet)
         base_payout = self.analyzer.get_payout(rank, val)
         win_amount = base_payout * self.current_bet
 
-        # Special Case: Royal Flush Max Bet Bonus
+        # Royal Flush Max Bet Bonus
         if rank == HandRank.ROYAL_FLUSH and self.current_bet == 5:
             win_amount = 4000
 
-        # 4. Update Bankroll and UI Labels
         rank_display = rank.name.replace("_", " ").title()
 
+        # Update Result Label for BOTH Wins and Losses
         if win_amount > 0:
             self.result_label.config(text=f"{rank_display} - WIN ${win_amount}!", fg="#ffcc00")
             self.bankroll += win_amount
-            self.highlight_win(rank)
-        elif rank == HandRank.PAIR and val < 11:
-            # Show the rank but clarify it's not a 'Jacks or Better' winner
-            self.result_label.config(text=f"Pair of {val}s (Low)", fg="white")
+            if rank.value >= 6:  # Big Win Flash
+                self.flash_payout_row(rank)
+            else:
+                self.highlight_win(rank)
         else:
+            # THIS WAS MISSING: Show the result even if they lost
             self.result_label.config(text=rank_display, fg="white")
 
-        # Update the main Bankroll text
+        # 4. Update UI & Graph
         self.header_label.config(text=f"Bankroll: ${self.bankroll}")
-
-        # 5. --- DATA DASHBOARD UPDATES ---
-        # Track history for the graph
         self.bankroll_history.append(self.bankroll)
 
-        # Update the live text stats (Hands Played and Profit/Loss)
         total_hands = len(self.bankroll_history) - 1
-        profit = self.bankroll - 200  # Assuming 200 is starting bankroll
-        profit_color = "#00ff00" if profit >= 0 else "#ff3333"
+        profit = self.bankroll - 200
 
         if hasattr(self, 'hands_lbl'):
             self.hands_lbl.config(text=f"HANDS: {total_hands}")
         if hasattr(self, 'profit_lbl'):
-            self.profit_lbl.config(text=f"PROFIT: ${profit}", fg=profit_color)
+            self.profit_lbl.config(text=f"PROFIT: ${profit}",
+                                   fg="#00ff00" if profit >= 0 else "#ff3333")
 
-        # Redraw the neon graph
         self.update_graph()
 
-        # 6. Clean up for next hand
+        # 5. Clean up for next hand
         self.reset_holds()
         self.check_game_over()
+
+        # Reset the button so they can DEAL again
+        self.deal_button.config(text="DEAL")
+        self.game_state = GameState.DEAL
+        self.deal_button.config(state=tk.NORMAL)
 
     def reset_holds(self):
         """Clears all hold selections and resets card borders to the background color."""
@@ -464,16 +501,17 @@ class GUI:
         if self.game_state == GameState.DEAL:
             if self.current_bet == 0:
                 self.flash_bet_label()
-                return  # Stop here! Don't change button to DRAW.
-
+                return
             self.process_deal()
-            self.game_state = GameState.DRAW
+            # Button changes to DRAW immediately upon deal
             self.deal_button.config(text="DRAW")
+            self.game_state = GameState.DRAW
 
         elif self.game_state == GameState.DRAW:
+            # Disable the button briefly so they don't click it twice during animation
+            self.deal_button.config(state=tk.DISABLED)
             self.process_draw()
-            self.game_state = GameState.DEAL
-            self.deal_button.config(text="DEAL")
+            # The button is re-enabled and set to "DEAL" inside finish_hand_logic
 
     def toggle_hold(self, event, i):
         if self.game_state == GameState.DRAW:
@@ -489,6 +527,26 @@ class GUI:
         plt.close('all')  # This kills the background graph threads
         self.root.quit()  # This stops the Tkinter mainloop
         self.root.destroy()  # This closes the window
+
+    def flash_payout_row(self, rank, count=0):
+        """Creates a neon flashing effect on the winning Pay Table row."""
+        if rank in self.payout_rows:
+            labels = self.payout_rows[rank]
+            # Toggle colors
+            if count % 2 == 0:
+                bg_color, fg_color = "#ffcc00", "black"  # Gold background
+            else:
+                bg_color, fg_color = "#072b07", "#ffcc00"  # Back to sidebar colors
+
+            for lbl in labels:
+                lbl.config(bg=bg_color, fg=fg_color)
+
+            # Repeat 8 times (4 full flashes)
+            if count < 8:
+                self.root.after(200, lambda: self.flash_payout_row(rank, count + 1))
+            else:
+                # Ensure it ends on the highlighted Gold state
+                self.highlight_win(rank)
 
     def flash_bet_label(self, count=0):
         """Flashes the bet label red to grab attention."""
