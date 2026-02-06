@@ -8,6 +8,7 @@ from GameState import GameState
 from HandRank import HandRank
 from PayoutTable import PAYOUT_TABLE
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from PIL import Image, ImageTk
 
 
 class GUI:
@@ -27,11 +28,14 @@ class GUI:
         self.current_bet = 0
         self.max_bet_limit = 5
         self.bankroll_history = [200]
+        self.card_images = {}
 
         # --- UI Elements ---
         self.hand_rank = ""
         self._setup_ui()
         self._setup_payout_table()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def _setup_dashboard(self):
         self.dashboard_frame = tk.Frame(self.game_area, bg="#0a3d0a")
@@ -133,21 +137,38 @@ class GUI:
         self.card_frame.pack(pady=30)
 
         self.card_labels = []
+        # Point to your specific back image name
+        back_img = self.get_card_image("back_green")
+
         for i in range(5):
             lbl = tk.Label(
                 self.card_frame,
-                text="?",
-                font=("Arial", 24, "bold"),
-                width=5,
-                height=3,
-                relief="raised",
-                bg="white",
+                text="",  # Ensure text is empty
+                image=back_img,  # Start with the back image
+                bg="#0a3d0a",  # Match background
+                padx=0, pady=0,  # Remove internal padding
+                borderwidth=0,  # Clean edges
                 highlightthickness=4,
                 highlightbackground="#0a3d0a"
             )
+            # Use pixel-based sizing now
+            lbl.config(width=110, height=155)
             lbl.grid(row=0, column=i, padx=5)
             lbl.bind("<Button-1>", lambda event, i=i: self.toggle_hold(event, i))
             self.card_labels.append(lbl)
+
+            # Save reference so it doesn't disappear
+            if back_img:
+                lbl.image = back_img
+
+        lbl = tk.Label(
+            self.card_frame,
+            image=back_img,
+            bg="#0a3d0a",
+            highlightthickness=4,
+            highlightbackground="#0a3d0a"
+        )
+        lbl.image = back_img
 
         # Result Display Area
         self.result_label = tk.Label(
@@ -167,7 +188,8 @@ class GUI:
             font=("Arial", 16, "bold"),
             width=15,
             height=2,
-            bg="#ffcc00"
+            bg="#ffcc00",
+            state=tk.NORMAL
         )
         self.deal_button.pack(pady=10)
         self._setup_dashboard()
@@ -233,38 +255,89 @@ class GUI:
                 lbl.config(bg="#ffcc00", fg="black")
 
     def change_bet(self, amount):
-        """Increases or decreases the bet between 1 and 5."""
-        if self.game_state == GameState.DEAL:  # Only allow betting before the hand starts
+        if self.game_state == GameState.DEAL:
             new_bet = self.current_bet + amount
-            if 1 <= new_bet <= self.max_bet_limit:
+            if 0 <= new_bet <= self.max_bet_limit:
                 self.current_bet = new_bet
                 self.bet_label.config(text=f"BET: {self.current_bet}")
                 self.update_payout_display()
 
+                # Visual feedback only (No state=tk.DISABLED)
+                if self.current_bet > 0:
+                    self.deal_button.config(bg="#ffcc00", fg="black")
+                else:
+                    self.deal_button.config(bg="#555", fg="#888")
+
     def set_max_bet(self):
-        """Instantly sets bet to 5 and starts the game."""
         if self.game_state == GameState.DEAL:
             self.current_bet = self.max_bet_limit
             self.bet_label.config(text=f"BET: {self.current_bet}")
             self.update_payout_display()
-            self.process_deal()
-            # Update the main button to say DRAW
-            self.deal_button.config(text="DRAW")
-            self.game_state = GameState.DRAW
+
+            # Instantly enable and trigger the deal
+            self.deal_button.config(state=tk.NORMAL, bg="#ffcc00", fg="black")
+            self.play_action()  # This will call process_deal
+
+    def get_card_image(self, card_name):
+        """Loads 'as.png', 'kd.png', etc."""
+        if card_name in self.card_images:
+            return self.card_images[card_name]
+
+        # Force lowercase to match your files: 'as.png'
+        filename = f"{card_name.lower()}.png"
+        path = f"cards/{filename}"
+
+        try:
+            img = Image.open(path)
+            # Standard video poker card size
+            img = img.resize((110, 155), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self.card_images[card_name] = photo
+            return photo
+        except Exception as e:
+            print(f"File not found: {path}")
+            return None
 
     def show_cards(self):
         for i, card in enumerate(self.current_hand):
-            self.card_labels[i].config(text=f"{card.value.upper()}{card.suit.upper()}")
+            # Format to 'as', 'kd', etc. to match your files
+            card_name = f"{card.value}{card.suit}".lower()
+            img = self.get_card_image(card_name)
+
+            if img:
+                # IMPORTANT: Set text to "" to remove the '4S' ghosting
+                self.card_labels[i].config(image=img, text="")
+                self.card_labels[i].image = img
+            else:
+                # Fallback if image is missing
+                self.card_labels[i].config(text=card_name.upper(), image="")
+
 
     def analyze(self):
         self.analyzer = HandAnalyzer(self.current_hand, self.deck.get_cards)
         self.analyzer.analyze()
 
     def process_deal(self):
+        # Check if the player is trying to play for free!
+        if self.current_bet == 0:
+            self.flash_bet_label()
+            # Optional: Add a subtle status message instead of a popup
+            self.result_label.config(text="PLACE A BET FIRST", fg="#ff3333")
+            return
+
+        # Check if they have enough money for the bet
+        if self.bankroll < self.current_bet:
+            messagebox.showerror("Insufficent Funds", "You don't have enough credits for that bet!")
+            return
+
+        # --- If checks pass, proceed with the game ---
         self.bankroll -= self.current_bet
         self.header_label.config(text=f"Bankroll: ${self.bankroll}")
+
+        # ... rest of your existing logic ...
         self.result_label.config(text="")
         self.game_state = GameState.DRAW
+        # ... etc ...
 
         # FIX: Reset to the correct DARK background color of the sidebar
         for labels in self.payout_rows.values():
@@ -389,7 +462,11 @@ class GUI:
 
     def play_action(self):
         if self.game_state == GameState.DEAL:
-            self.process_deal()  # Logic for dealing
+            if self.current_bet == 0:
+                self.flash_bet_label()
+                return  # Stop here! Don't change button to DRAW.
+
+            self.process_deal()
             self.game_state = GameState.DRAW
             self.deal_button.config(text="DRAW")
 
@@ -406,3 +483,22 @@ class GUI:
                 self.card_labels[i].config(highlightbackground="lime")
             else:
                 self.card_labels[i].config(highlightbackground="#0a3d0a")
+
+    def on_closing(self):
+        """Cleanly shuts down the app and Matplotlib."""
+        plt.close('all')  # This kills the background graph threads
+        self.root.quit()  # This stops the Tkinter mainloop
+        self.root.destroy()  # This closes the window
+
+    def flash_bet_label(self, count=0):
+        """Flashes the bet label red to grab attention."""
+        if count < 6:  # Flashes 3 times (Red -> White, Red -> White, etc.)
+            current_color = self.bet_label.cget("fg")
+            next_color = "#ff3333" if current_color == "white" else "white"
+            self.bet_label.config(fg=next_color)
+
+            # Call again in 150ms
+            self.root.after(150, lambda: self.flash_bet_label(count + 1))
+        else:
+            # Ensure it ends on white
+            self.bet_label.config(fg="white")
