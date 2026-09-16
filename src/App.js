@@ -7,9 +7,17 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import PlayingCard from './components/PlayingCard';
 import { dealRound } from './game/deck';
 import { calculateHoldExpectedValue } from './game/expectedValue';
-import { evaluateHandValue } from './game/handEvaluator';
+import { evaluateHand, evaluateHandValue } from './game/handEvaluator';
+import {
+  getPayoutCredits,
+  MAX_WAGER,
+  MIN_WAGER,
+} from './game/payTable';
 import { analyzeBestHold } from './game/strategyAnalysis';
 import styles from './styles/appStyles';
+
+const STARTING_CREDITS = 100;
+const DEFAULT_WAGER = MAX_WAGER;
 
 const EMPTY_SESSION_STATS = {
   hands: 0,
@@ -25,7 +33,6 @@ function holdsMatch(firstHold, secondHold) {
   }
 
   const sortedFirst = [...firstHold].sort((first, second) => first - second);
-
   const sortedSecond = [...secondHold].sort((first, second) => first - second);
 
   return sortedFirst.every(
@@ -57,12 +64,18 @@ function formatExpectedValue(expectedValue) {
 export default function App() {
   const [round, setRound] = useState(() => dealRound());
   const [heldCards, setHeldCards] = useState([]);
-  const [phase, setPhase] = useState('hold');
+  const [phase, setPhase] = useState('ready');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [trainingFeedback, setTrainingFeedback] = useState(null);
   const [sessionStats, setSessionStats] = useState(EMPTY_SESSION_STATS);
+  const [credits, setCredits] = useState(STARTING_CREDITS);
+  const [wager, setWager] = useState(DEFAULT_WAGER);
+  const [currentWager, setCurrentWager] = useState(0);
+  const [lastWin, setLastWin] = useState(0);
 
   const handValue = phase === 'result' ? evaluateHandValue(round.hand) : null;
+  const wagerControlsEnabled = phase !== 'hold' && !isAnalyzing;
+  const canDeal = credits >= wager && credits > 0;
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
@@ -84,6 +97,43 @@ export default function App() {
     });
   }
 
+  function cycleWager() {
+    if (!wagerControlsEnabled) {
+      return;
+    }
+
+    const maxAffordableWager =
+      credits > 0 ? Math.min(MAX_WAGER, credits) : MIN_WAGER;
+
+    setWager((currentWagerValue) =>
+      currentWagerValue >= maxAffordableWager
+        ? MIN_WAGER
+        : currentWagerValue + 1,
+    );
+  }
+
+  function selectMaxWager() {
+    if (!wagerControlsEnabled) {
+      return;
+    }
+
+    setWager(credits > 0 ? Math.min(MAX_WAGER, credits) : MAX_WAGER);
+  }
+
+  function dealNewHand() {
+    if (isAnalyzing || !canDeal) {
+      return;
+    }
+
+    setCredits((currentCredits) => currentCredits - wager);
+    setCurrentWager(wager);
+    setLastWin(0);
+    setRound(dealRound());
+    setHeldCards([]);
+    setPhase('hold');
+    setTrainingFeedback(null);
+  }
+
   function drawCards() {
     let nextCardIndex = 0;
 
@@ -93,16 +143,19 @@ export default function App() {
       }
 
       const replacementCard = round.remainingDeck[nextCardIndex];
-
       nextCardIndex += 1;
       return replacementCard;
     });
+
+    const handResult = evaluateHand(finalHand);
+    const payout = getPayoutCredits(handResult, currentWager);
 
     setRound({
       hand: finalHand,
       remainingDeck: round.remainingDeck.slice(nextCardIndex),
     });
-
+    setCredits((currentCredits) => currentCredits + payout);
+    setLastWin(payout);
     setHeldCards([]);
     setPhase('result');
   }
@@ -116,7 +169,11 @@ export default function App() {
         const openingHand = round.hand;
         const startTime = Date.now();
 
-        const analysis = analyzeBestHold(openingHand, round.remainingDeck);
+        const analysis = analyzeBestHold(
+          openingHand,
+          round.remainingDeck,
+          currentWager,
+        );
         const { bestHolds } = analysis;
         const bestHold = bestHolds[0];
 
@@ -130,6 +187,7 @@ export default function App() {
               openingHand,
               round.remainingDeck,
               heldCards,
+              currentWager,
             ).expectedValue;
 
         const calculationTime = Date.now() - startTime;
@@ -150,8 +208,8 @@ export default function App() {
         setTrainingFeedback({
           isCorrect: playerWasCorrect,
           recommendation: describeHold(openingHand, recommendedHold),
-          playerExpectedValue,
-          bestExpectedValue: bestHold.expectedValue,
+          playerExpectedValue: playerExpectedValue * currentWager,
+          bestExpectedValue: bestHold.expectedValue * currentWager,
           calculationTime,
           strategyRule: analysis.rule,
         });
@@ -167,22 +225,19 @@ export default function App() {
     }, 50);
   }
 
-  function startNewRound() {
-    setRound(dealRound());
-    setHeldCards([]);
-    setPhase('hold');
-    setTrainingFeedback(null);
-  }
-
   function startOver() {
     if (isAnalyzing) {
       return;
     }
 
     setSessionStats({ ...EMPTY_SESSION_STATS });
+    setCredits(STARTING_CREDITS);
+    setWager(DEFAULT_WAGER);
+    setCurrentWager(0);
+    setLastWin(0);
     setRound(dealRound());
     setHeldCards([]);
-    setPhase('hold');
+    setPhase('ready');
     setTrainingFeedback(null);
   }
 
@@ -194,9 +249,12 @@ export default function App() {
     if (phase === 'hold') {
       analyzeAndDraw();
     } else {
-      startNewRound();
+      dealNewHand();
     }
   }
+
+  const mainButtonDisabled =
+    isAnalyzing || (phase !== 'hold' && !canDeal);
 
   return (
     <SafeAreaProvider>
@@ -205,14 +263,68 @@ export default function App() {
         edges={['top', 'right', 'bottom', 'left']}>
         <StatusBar hidden />
 
-        <Text style={styles.title}>PEEKER</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>PEEKER</Text>
 
-        <Text style={styles.subtitle}>
+          <View style={styles.wagerBar}>
+          <View style={styles.creditReadout}>
+            <Text style={styles.wagerLabel}>CREDITS</Text>
+            <Text style={styles.wagerValue}>{credits}</Text>
+          </View>
+
+          <View style={styles.creditReadout}>
+            <Text style={styles.wagerLabel}>BET</Text>
+            <Text style={styles.wagerValue}>
+              {phase === 'hold' ? currentWager : wager}
+            </Text>
+          </View>
+
+          <View style={styles.creditReadout}>
+            <Text style={styles.wagerLabel}>WIN</Text>
+            <Text style={styles.wagerValue}>{lastWin}</Text>
+          </View>
+
+          <Pressable
+            disabled={!wagerControlsEnabled}
+            style={({ pressed }) => [
+              styles.wagerButton,
+              pressed && styles.wagerButtonPressed,
+              !wagerControlsEnabled && styles.wagerButtonDisabled,
+            ]}
+            onPress={cycleWager}>
+            <Text style={styles.wagerButtonText}>BET ONE</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!wagerControlsEnabled}
+            style={({ pressed }) => [
+              styles.wagerButton,
+              pressed && styles.wagerButtonPressed,
+              !wagerControlsEnabled && styles.wagerButtonDisabled,
+            ]}
+            onPress={selectMaxWager}>
+            <Text style={styles.wagerButtonText}>MAX BET</Text>
+          </Pressable>
+          </View>
+
+        </View>
+        <Text
+          style={[
+            styles.subtitle,
+            phase === 'result' && styles.resultSubtitle,
+          ]}>
           {isAnalyzing
             ? 'Finding the best hold...'
-            : phase === 'hold'
-              ? 'Choose cards to hold'
-              : handValue}
+            : phase === 'ready'
+              ? 'Choose your wager and deal'
+              : phase === 'hold'
+                ? 'Choose cards to hold'
+                : handValue}
+          {phase === 'result' && lastWin > 0 && (
+            <Text style={styles.winResultText}>
+              {'  •  '}YOU WON {lastWin} {lastWin === 1 ? 'CREDIT' : 'CREDITS'}
+            </Text>
+          )}
         </Text>
 
         <View style={styles.feedbackRow}>
@@ -322,17 +434,18 @@ export default function App() {
               key={`${card.id}-${index}`}
               card={card}
               isHeld={heldCards.includes(index)}
+              isFaceDown={phase === 'ready'}
               onToggle={() => toggleHold(index)}
             />
           ))}
         </View>
 
         <Pressable
-          disabled={isAnalyzing}
+          disabled={mainButtonDisabled}
           style={({ pressed }) => [
             styles.dealButton,
             pressed && styles.dealButtonPressed,
-            isAnalyzing && styles.dealButtonDisabled,
+            mainButtonDisabled && styles.dealButtonDisabled,
           ]}
           onPress={handleMainButton}>
           <Text style={styles.dealButtonText}>
@@ -340,7 +453,9 @@ export default function App() {
               ? 'ANALYZING...'
               : phase === 'hold'
                 ? 'DRAW'
-                : 'DEAL NEW HAND'}
+                : canDeal
+                  ? 'DEAL'
+                  : 'NOT ENOUGH CREDITS'}
           </Text>
         </Pressable>
       </SafeAreaView>

@@ -2,7 +2,20 @@ import { Pressable, Text } from 'react-native';
 
 import styles from '../styles/appStyles';
 
-export default function PlayingCard({ card, isHeld, onToggle }) {
+export default function PlayingCard({
+  card,
+  isHeld,
+  isFaceDown = false,
+  onToggle,
+}) {
+  if (isFaceDown) {
+    return (
+      <Pressable style={[styles.card, styles.cardBack]} disabled>
+        <Text style={styles.cardBackText}>PEEKER</Text>
+      </Pressable>
+    );
+  }
+
   const cardTextStyle = [
     styles.cardText,
     card.color === 'red' && styles.redCardText,

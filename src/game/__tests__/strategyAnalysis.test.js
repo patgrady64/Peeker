@@ -49,4 +49,20 @@ describe('analyzeBestHold', () => {
     expect(analysis.rule).toBeNull();
     expect(analysis.bestHolds).toEqual(exhaustiveBestHolds);
   });
+
+  test('uses wager-aware exhaustive analysis below max bet', () => {
+    const hand = [
+      card('J', 'clubs'),
+      card('4', 'diamonds'),
+      card('J', 'hearts'),
+      card('9', 'spades'),
+      card('4', 'clubs'),
+    ];
+
+    const remainingDeck = [card('A', 'spades')];
+    const analysis = analyzeBestHold(hand, remainingDeck, 1);
+
+    expect(analysis.method).toBe('exhaustive');
+  });
+
 });

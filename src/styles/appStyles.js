@@ -10,9 +10,70 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
 
+
+  headerRow: {
+    width: '100%',
+    maxWidth: 760,
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  wagerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  creditReadout: {
+    minWidth: 48,
+    alignItems: 'center',
+  },
+
+  wagerLabel: {
+    color: '#A9D8C8',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  wagerValue: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+
+  wagerButton: {
+    minWidth: 64,
+    minHeight: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#B8E2D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+  },
+
+  wagerButtonPressed: {
+    opacity: 0.65,
+  },
+
+  wagerButtonDisabled: {
+    opacity: 0.35,
+  },
+
+  wagerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.25,
+  },
+
   title: {
     color: '#FFFFFF',
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '900',
     letterSpacing: 5,
   },
@@ -22,6 +83,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 5,
+  },
+
+  resultSubtitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
+    marginBottom: 7,
+  },
+
+  winResultText: {
+    color: '#FFD54A',
+    fontSize: 20,
+    fontWeight: '900',
   },
 
   feedbackRow: {
@@ -131,6 +206,19 @@ const styles = StyleSheet.create({
     borderColor: '#D9D9D9',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+
+  cardBack: {
+    borderColor: '#B8E2D4',
+    backgroundColor: '#0B4D3A',
+  },
+
+  cardBackText: {
+    color: '#B8E2D4',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 
   heldCard: {

@@ -82,3 +82,18 @@ describe('calculateDiscardAllExpectedValue', () => {
     expect(result.expectedValue).toBe(0);
   });
 });
+
+describe('calculateDiscardAllExpectedValue wager-aware Royal payout', () => {
+  test('uses 250 per credit below max bet and 800 per credit at max bet', () => {
+    const royalOnlyDeck = [
+      card('10', 'hearts'),
+      card('J', 'hearts'),
+      card('Q', 'hearts'),
+      card('K', 'hearts'),
+      card('A', 'hearts'),
+    ];
+
+    expect(calculateDiscardAllExpectedValue(royalOnlyDeck, 1).expectedValue).toBe(250);
+    expect(calculateDiscardAllExpectedValue(royalOnlyDeck, 5).expectedValue).toBe(800);
+  });
+});

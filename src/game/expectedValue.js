@@ -3,9 +3,14 @@ import { forEachCombination } from './drawCombinations';
 import { evaluateHand } from './handEvaluator';
 import { getPayoutMultiplier } from './payTable';
 
-export function calculateHoldExpectedValue(hand, remainingDeck, heldIndexes) {
+export function calculateHoldExpectedValue(
+  hand,
+  remainingDeck,
+  heldIndexes,
+  wager = 5,
+) {
   if (heldIndexes.length === 0) {
-    return calculateDiscardAllExpectedValue(remainingDeck);
+    return calculateDiscardAllExpectedValue(remainingDeck, wager);
   }
 
   const heldCards = heldIndexes.map((index) => hand[index]);
@@ -28,7 +33,7 @@ export function calculateHoldExpectedValue(hand, remainingDeck, heldIndexes) {
       }
 
       const result = evaluateHand(finalHand);
-      totalPayout += getPayoutMultiplier(result);
+      totalPayout += getPayoutMultiplier(result, wager);
     },
   );
 

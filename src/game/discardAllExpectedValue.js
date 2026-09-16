@@ -32,7 +32,8 @@ const STRAIGHT_RANKS = [
 const ROYAL_RANKS = ['10', 'J', 'Q', 'K', 'A'];
 
 const PAYOUTS = {
-  royalFlush: 800,
+  royalFlushMax: 800,
+  royalFlushStandard: 250,
   straightFlush: 50,
   fourOfAKind: 25,
   fullHouse: 9,
@@ -289,7 +290,7 @@ function countJacksOrBetter(rankCounts) {
   return count;
 }
 
-export function calculateDiscardAllExpectedValue(remainingDeck) {
+export function calculateDiscardAllExpectedValue(remainingDeck, wager = 5) {
   const possibleDraws = choose(remainingDeck.length, 5);
 
   if (possibleDraws === 0) {
@@ -316,8 +317,11 @@ export function calculateDiscardAllExpectedValue(remainingDeck) {
   const twoPair = countTwoPair(rankCounts);
   const jacksOrBetter = countJacksOrBetter(rankCounts);
 
+  const royalFlushPayout =
+    wager === 5 ? PAYOUTS.royalFlushMax : PAYOUTS.royalFlushStandard;
+
   const totalPayout =
-    royalFlushes * PAYOUTS.royalFlush +
+    royalFlushes * royalFlushPayout +
     straightFlushes * PAYOUTS.straightFlush +
     fourOfAKind * PAYOUTS.fourOfAKind +
     fullHouses * PAYOUTS.fullHouse +

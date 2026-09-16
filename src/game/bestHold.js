@@ -7,12 +7,18 @@ export function findBestHolds(
   hand,
   remainingDeck,
   holdCombinations = createHoldCombinations(),
+  wager = 5,
 ) {
   let bestExpectedValue = -Infinity;
   let bestHolds = [];
 
   for (const heldIndexes of holdCombinations) {
-    const result = calculateHoldExpectedValue(hand, remainingDeck, heldIndexes);
+    const result = calculateHoldExpectedValue(
+      hand,
+      remainingDeck,
+      heldIndexes,
+      wager,
+    );
 
     if (result.possibleDraws === 0) {
       continue;
