@@ -6,9 +6,18 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 
 import PlayingCard from './components/PlayingCard';
 import { dealRound } from './game/deck';
-import { evaluateHand } from './game/handEvaluator';
+import { calculateHoldExpectedValue } from './game/expectedValue';
+import { evaluateHandValue } from './game/handEvaluator';
 import { analyzeBestHold } from './game/strategyAnalysis';
 import styles from './styles/appStyles';
+
+const EMPTY_SESSION_STATS = {
+  hands: 0,
+  correct: 0,
+  mistakes: 0,
+  streak: 0,
+  bestStreak: 0,
+};
 
 function holdsMatch(firstHold, secondHold) {
   if (firstHold.length !== secondHold.length) {
@@ -41,14 +50,19 @@ function describeHold(hand, heldIndexes) {
   return `Hold ${cards.join(', ')}`;
 }
 
+function formatExpectedValue(expectedValue) {
+  return expectedValue.toFixed(3);
+}
+
 export default function App() {
   const [round, setRound] = useState(() => dealRound());
   const [heldCards, setHeldCards] = useState([]);
   const [phase, setPhase] = useState('hold');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [trainingFeedback, setTrainingFeedback] = useState(null);
+  const [sessionStats, setSessionStats] = useState(EMPTY_SESSION_STATS);
 
-  const handResult = phase === 'result' ? evaluateHand(round.hand) : null;
+  const handValue = phase === 'result' ? evaluateHandValue(round.hand) : null;
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
@@ -104,19 +118,40 @@ export default function App() {
 
         const analysis = analyzeBestHold(openingHand, round.remainingDeck);
         const { bestHolds } = analysis;
+        const bestHold = bestHolds[0];
 
-        const calculationTime = Date.now() - startTime;
-
-        const playerWasCorrect = bestHolds.some((bestHold) =>
-          holdsMatch(heldCards, bestHold.heldIndexes),
+        const playerWasCorrect = bestHolds.some((candidateHold) =>
+          holdsMatch(heldCards, candidateHold.heldIndexes),
         );
 
-        const recommendedHold = bestHolds[0].heldIndexes;
+        const playerExpectedValue = playerWasCorrect
+          ? bestHold.expectedValue
+          : calculateHoldExpectedValue(
+              openingHand,
+              round.remainingDeck,
+              heldCards,
+            ).expectedValue;
+
+        const calculationTime = Date.now() - startTime;
+        const recommendedHold = bestHold.heldIndexes;
+
+        setSessionStats((currentStats) => {
+          const nextStreak = playerWasCorrect ? currentStats.streak + 1 : 0;
+
+          return {
+            hands: currentStats.hands + 1,
+            correct: currentStats.correct + (playerWasCorrect ? 1 : 0),
+            mistakes: currentStats.mistakes + (playerWasCorrect ? 0 : 1),
+            streak: nextStreak,
+            bestStreak: Math.max(currentStats.bestStreak, nextStreak),
+          };
+        });
 
         setTrainingFeedback({
           isCorrect: playerWasCorrect,
           recommendation: describeHold(openingHand, recommendedHold),
-          expectedValue: bestHolds[0].expectedValue,
+          playerExpectedValue,
+          bestExpectedValue: bestHold.expectedValue,
           calculationTime,
           strategyRule: analysis.rule,
         });
@@ -133,6 +168,18 @@ export default function App() {
   }
 
   function startNewRound() {
+    setRound(dealRound());
+    setHeldCards([]);
+    setPhase('hold');
+    setTrainingFeedback(null);
+  }
+
+  function startOver() {
+    if (isAnalyzing) {
+      return;
+    }
+
+    setSessionStats({ ...EMPTY_SESSION_STATS });
     setRound(dealRound());
     setHeldCards([]);
     setPhase('hold');
@@ -165,7 +212,7 @@ export default function App() {
             ? 'Finding the best hold...'
             : phase === 'hold'
               ? 'Choose cards to hold'
-              : 'Final hand'}
+              : handValue}
         </Text>
 
         <View style={styles.feedbackRow}>
@@ -187,6 +234,20 @@ export default function App() {
                 <Text style={styles.feedbackText} numberOfLines={1}>
                   {trainingFeedback.recommendation}
                 </Text>
+
+                <Text style={styles.feedbackEvText} numberOfLines={1}>
+                  {trainingFeedback.isCorrect ? (
+                    <>
+                      EV: {formatExpectedValue(trainingFeedback.bestExpectedValue)}
+                    </>
+                  ) : (
+                    <>
+                      YOUR EV: {formatExpectedValue(trainingFeedback.playerExpectedValue)}{' '}
+                      | BETTER PLAY EV:{' '}
+                      {formatExpectedValue(trainingFeedback.bestExpectedValue)}
+                    </>
+                  )}
+                </Text>
               </View>
             )}
 
@@ -195,13 +256,64 @@ export default function App() {
                 Analysis error: {trainingFeedback.error}
               </Text>
             )}
-
-            {!trainingFeedback && handResult && (
-              <Text style={styles.handResult}>{handResult}</Text>
-            )}
           </View>
 
-          <View style={styles.feedbackSpacer} />
+          <View style={styles.trainerPanel}>
+            <View style={styles.trainerStatsRow}>
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>{sessionStats.hands}</Text>
+                <Text style={styles.trainerStatLabel}>HANDS</Text>
+              </View>
+
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>{sessionStats.correct}</Text>
+                <Text style={styles.trainerStatLabel}>CORRECT</Text>
+              </View>
+
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>{sessionStats.mistakes}</Text>
+                <Text style={styles.trainerStatLabel}>MISTAKES</Text>
+              </View>
+
+              <Pressable
+                disabled={isAnalyzing}
+                style={({ pressed }) => [
+                  styles.startOverButton,
+                  pressed && styles.startOverButtonPressed,
+                  isAnalyzing && styles.startOverButtonDisabled,
+                ]}
+                onPress={startOver}>
+                <Text style={styles.startOverButtonText}>START OVER</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.trainerStatsRow}>
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>
+                  {sessionStats.hands === 0
+                    ? '--'
+                    : `${Math.round(
+                        (sessionStats.correct / sessionStats.hands) * 100,
+                      )}%`}
+                </Text>
+                <Text style={styles.trainerStatLabel}>ACCURACY</Text>
+              </View>
+
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>{sessionStats.streak}</Text>
+                <Text style={styles.trainerStatLabel}>STREAK</Text>
+              </View>
+
+              <View style={styles.trainerStat}>
+                <Text style={styles.trainerStatValue}>
+                  {sessionStats.bestStreak}
+                </Text>
+                <Text style={styles.trainerStatLabel}>BEST</Text>
+              </View>
+
+              <View style={styles.startOverSpacer} />
+            </View>
+          </View>
         </View>
 
         <View style={styles.cardRow}>

@@ -7,7 +7,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
 
   title: {
@@ -20,16 +20,18 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#CDEADF',
     fontSize: 15,
-    marginBottom: 8,
+    fontWeight: '700',
+    marginBottom: 5,
   },
 
   feedbackRow: {
     width: '100%',
-    maxWidth: 720,
-    minHeight: 52,
+    maxWidth: 760,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
+    transform: [{ translateY: -10 }],
   },
 
   feedbackSlot: {
@@ -38,17 +40,81 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  feedbackSpacer: {
+  trainerPanel: {
     flex: 1,
+    marginLeft: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3F806B',
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+
+  trainerStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  trainerStat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+
+  trainerStatValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 15,
+  },
+
+  trainerStatLabel: {
+    color: '#A9D8C8',
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 9,
+  },
+
+  startOverButton: {
+    width: 74,
+    minHeight: 23,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#B8E2D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+
+  startOverButtonPressed: {
+    opacity: 0.65,
+  },
+
+  startOverButtonDisabled: {
+    opacity: 0.4,
+  },
+
+  startOverButtonText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
+  startOverSpacer: {
+    width: 74,
   },
 
   compactFeedback: {
-    minWidth: 260,
-    maxWidth: 350,
+    minWidth: 280,
+    maxWidth: 375,
     borderRadius: 8,
     borderWidth: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
 
   cardRow: {
@@ -98,9 +164,9 @@ const styles = StyleSheet.create({
   dealButton: {
     backgroundColor: '#ffd54a',
     borderRadius: 8,
-    marginTop: 12,
+    marginTop: 9,
     paddingHorizontal: 28,
-    paddingVertical: 12,
+    paddingVertical: 11,
   },
 
   dealButtonPressed: {
@@ -110,12 +176,6 @@ const styles = StyleSheet.create({
   dealButtonText: {
     color: '#17211d',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-
-  handResult: {
-    color: '#ffd54a',
-    fontSize: 18,
     fontWeight: 'bold',
   },
 
@@ -131,13 +191,20 @@ const styles = StyleSheet.create({
 
   feedbackTitle: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
 
   feedbackText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 11,
+    marginTop: 1,
+  },
+
+  feedbackEvText: {
+    color: '#FFD9D6',
+    fontSize: 9,
+    fontWeight: '700',
     marginTop: 1,
   },
 

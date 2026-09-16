@@ -123,3 +123,32 @@ export function evaluateHand(hand) {
 
   return 'Nothing';
 }
+
+export function evaluateHandValue(hand) {
+  const payoutResult = evaluateHand(hand);
+
+  if (payoutResult === 'Jacks or Better') {
+    return 'Pair';
+  }
+
+  if (payoutResult !== 'Nothing') {
+    return payoutResult;
+  }
+
+  if (!hand || hand.length !== 5) {
+    return 'Nothing';
+  }
+
+  const seenRanks = new Set();
+
+  for (const card of hand) {
+    if (seenRanks.has(card.rank)) {
+      return 'Pair';
+    }
+
+    seenRanks.add(card.rank);
+  }
+
+  return 'Nothing';
+}
+
