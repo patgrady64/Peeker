@@ -168,7 +168,41 @@ export default function App() {
               : 'Final hand'}
         </Text>
 
-        {handResult && <Text style={styles.handResult}>{handResult}</Text>}
+        <View style={styles.feedbackRow}>
+          <View style={styles.feedbackSlot}>
+            {trainingFeedback && !trainingFeedback.error && (
+              <View
+                style={[
+                  styles.compactFeedback,
+                  trainingFeedback.isCorrect
+                    ? styles.correctFeedback
+                    : styles.incorrectFeedback,
+                ]}>
+                <Text style={styles.feedbackTitle}>
+                  {trainingFeedback.isCorrect
+                    ? 'CORRECT PLAY'
+                    : 'BETTER PLAY AVAILABLE'}
+                </Text>
+
+                <Text style={styles.feedbackText} numberOfLines={1}>
+                  {trainingFeedback.recommendation}
+                </Text>
+              </View>
+            )}
+
+            {trainingFeedback?.error && (
+              <Text style={styles.errorText} numberOfLines={1}>
+                Analysis error: {trainingFeedback.error}
+              </Text>
+            )}
+
+            {!trainingFeedback && handResult && (
+              <Text style={styles.handResult}>{handResult}</Text>
+            )}
+          </View>
+
+          <View style={styles.feedbackSpacer} />
+        </View>
 
         <View style={styles.cardRow}>
           {round.hand.map((card, index) => (
@@ -180,44 +214,6 @@ export default function App() {
             />
           ))}
         </View>
-
-        {trainingFeedback && !trainingFeedback.error && (
-          <View
-            style={[
-              styles.feedbackPanel,
-              trainingFeedback.isCorrect
-                ? styles.correctFeedback
-                : styles.incorrectFeedback,
-            ]}>
-            <Text style={styles.feedbackTitle}>
-              {trainingFeedback.isCorrect
-                ? 'CORRECT PLAY'
-                : 'BETTER PLAY AVAILABLE'}
-            </Text>
-
-            <Text style={styles.feedbackText}>
-              {trainingFeedback.recommendation}
-            </Text>
-
-            <Text style={styles.feedbackDetails}>
-              Expected value: {trainingFeedback.expectedValue.toFixed(4)}
-              {'  •  '}
-              Analysis: {trainingFeedback.calculationTime} ms
-            </Text>
-
-            {trainingFeedback.strategyRule && (
-              <Text style={styles.feedbackDetails}>
-                Strategy: {trainingFeedback.strategyRule}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {trainingFeedback?.error && (
-          <Text style={styles.errorText}>
-            Analysis error: {trainingFeedback.error}
-          </Text>
-        )}
 
         <Pressable
           disabled={isAnalyzing}

@@ -6,7 +6,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#075E45',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
   },
 
   title: {
@@ -19,7 +20,35 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#CDEADF',
     fontSize: 15,
-    marginBottom: 24,
+    marginBottom: 8,
+  },
+
+  feedbackRow: {
+    width: '100%',
+    maxWidth: 720,
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+
+  feedbackSlot: {
+    flex: 1,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+
+  feedbackSpacer: {
+    flex: 1,
+  },
+
+  compactFeedback: {
+    minWidth: 260,
+    maxWidth: 350,
+    borderRadius: 8,
+    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
 
   cardRow: {
@@ -69,7 +98,7 @@ const styles = StyleSheet.create({
   dealButton: {
     backgroundColor: '#ffd54a',
     borderRadius: 8,
-    marginTop: 20,
+    marginTop: 12,
     paddingHorizontal: 28,
     paddingVertical: 12,
   },
@@ -86,18 +115,8 @@ const styles = StyleSheet.create({
 
   handResult: {
     color: '#ffd54a',
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
-  },
-
-  feedbackPanel: {
-    borderRadius: 8,
-    borderWidth: 2,
-    marginTop: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    alignItems: 'center',
   },
 
   correctFeedback: {
@@ -112,26 +131,19 @@ const styles = StyleSheet.create({
 
   feedbackTitle: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
 
   feedbackText: {
     color: '#ffffff',
-    fontSize: 14,
-    marginTop: 2,
-  },
-
-  feedbackDetails: {
-    color: '#d8e5df',
     fontSize: 12,
-    marginTop: 3,
+    marginTop: 1,
   },
 
   errorText: {
     color: '#ff8a80',
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: 13,
   },
 
   dealButtonDisabled: {
