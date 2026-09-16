@@ -90,6 +90,53 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
   },
+
+  feedbackPanel: {
+    borderRadius: 8,
+    borderWidth: 2,
+    marginTop: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+
+  correctFeedback: {
+    backgroundColor: '#174f39',
+    borderColor: '#65d69e',
+  },
+
+  incorrectFeedback: {
+    backgroundColor: '#542828',
+    borderColor: '#ff8a80',
+  },
+
+  feedbackTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  feedbackText: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginTop: 2,
+  },
+
+  feedbackDetails: {
+    color: '#d8e5df',
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+  errorText: {
+    color: '#ff8a80',
+    fontSize: 14,
+    marginTop: 12,
+  },
+
+  dealButtonDisabled: {
+    opacity: 0.5,
+  },
 });
 
 export default styles;

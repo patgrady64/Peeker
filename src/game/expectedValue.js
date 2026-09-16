@@ -1,23 +1,36 @@
-import { generateCombinations } from './drawCombinations';
+import { calculateDiscardAllExpectedValue } from './discardAllExpectedValue';
+import { forEachCombination } from './drawCombinations';
 import { evaluateHand } from './handEvaluator';
 import { getPayoutMultiplier } from './payTable';
 
 export function calculateHoldExpectedValue(hand, remainingDeck, heldIndexes) {
+  if (heldIndexes.length === 0) {
+    return calculateDiscardAllExpectedValue(remainingDeck);
+  }
+
   const heldCards = heldIndexes.map((index) => hand[index]);
 
   const cardsToDraw = hand.length - heldCards.length;
+  const finalHand = new Array(hand.length);
+
+  for (let index = 0; index < heldCards.length; index += 1) {
+    finalHand[index] = heldCards[index];
+  }
 
   let totalPayout = 0;
-  let possibleDraws = 0;
 
-  for (const drawnCards of generateCombinations(remainingDeck, cardsToDraw)) {
-    const finalHand = [...heldCards, ...drawnCards];
-    const result = evaluateHand(finalHand);
-    const payout = getPayoutMultiplier(result);
+  const possibleDraws = forEachCombination(
+    remainingDeck,
+    cardsToDraw,
+    (drawnCards) => {
+      for (let index = 0; index < drawnCards.length; index += 1) {
+        finalHand[heldCards.length + index] = drawnCards[index];
+      }
 
-    totalPayout += payout;
-    possibleDraws += 1;
-  }
+      const result = evaluateHand(finalHand);
+      totalPayout += getPayoutMultiplier(result);
+    },
+  );
 
   const expectedValue = possibleDraws === 0 ? 0 : totalPayout / possibleDraws;
 

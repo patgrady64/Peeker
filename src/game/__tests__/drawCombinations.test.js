@@ -1,6 +1,33 @@
-import { generateCombinations } from '../drawCombinations';
+import { forEachCombination, generateCombinations } from '../drawCombinations';
 
 describe('generateCombinations', () => {
+    test('walks combinations using a callback', () => {
+      const receivedCombinations = [];
+
+      const count = forEachCombination(['A', 'B', 'C'], 2, (combination) => {
+        receivedCombinations.push([...combination]);
+      });
+
+      expect(count).toBe(3);
+
+      expect(receivedCombinations).toEqual([
+        ['A', 'B'],
+        ['A', 'C'],
+        ['B', 'C'],
+      ]);
+    });
+
+    test('calls the callback once when choosing zero', () => {
+      const receivedCombinations = [];
+
+      const count = forEachCombination(['A', 'B'], 0, (combination) => {
+        receivedCombinations.push([...combination]);
+      });
+
+      expect(count).toBe(1);
+      expect(receivedCombinations).toEqual([[]]);
+    });
+
   test('generates every two-item combination', () => {
     const combinations = Array.from(generateCombinations(['A', 'B', 'C'], 2));
 
@@ -34,3 +61,4 @@ describe('generateCombinations', () => {
     expect(counts).toEqual([1, 5, 10, 10, 5, 1]);
   });
 });
+

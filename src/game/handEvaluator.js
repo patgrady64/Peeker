@@ -15,34 +15,75 @@ const rankValues = {
 };
 
 export function evaluateHand(hand) {
-  const values = hand
-    .map((card) => rankValues[card.rank])
-    .sort((first, second) => first - second);
+  if (!hand || hand.length !== 5) {
+    return 'Nothing';
+  }
 
-  const rankCounts = {};
+  const rankCounts = new Uint8Array(15);
 
-  values.forEach((value) => {
-    rankCounts[value] = (rankCounts[value] || 0) + 1;
-  });
+  let uniqueRankCount = 0;
+  let lowestRank = 15;
+  let highestRank = 0;
+  let isFlush = true;
 
-  const counts = Object.values(rankCounts).sort(
-    (first, second) => second - first,
-  );
+  const firstSuit = hand[0].suit;
 
-  const uniqueValues = [...new Set(values)];
+  for (let index = 0; index < 5; index += 1) {
+    const card = hand[index];
+    const rankValue = rankValues[card.rank];
 
-  const isFlush = hand.every((card) => card.suit === hand[0].suit);
+    if (rankCounts[rankValue] === 0) {
+      uniqueRankCount += 1;
+    }
+
+    rankCounts[rankValue] += 1;
+
+    if (rankValue < lowestRank) {
+      lowestRank = rankValue;
+    }
+
+    if (rankValue > highestRank) {
+      highestRank = rankValue;
+    }
+
+    if (card.suit !== firstSuit) {
+      isFlush = false;
+    }
+  }
+
+  let pairCount = 0;
+  let pairRank = 0;
+  let hasThreeOfAKind = false;
+  let hasFourOfAKind = false;
+
+  for (let rank = 2; rank <= 14; rank += 1) {
+    const count = rankCounts[rank];
+
+    if (count === 4) {
+      hasFourOfAKind = true;
+    } else if (count === 3) {
+      hasThreeOfAKind = true;
+    } else if (count === 2) {
+      pairCount += 1;
+      pairRank = rank;
+    }
+  }
 
   const isNormalStraight =
-    uniqueValues.length === 5 && uniqueValues[4] - uniqueValues[0] === 4;
+    uniqueRankCount === 5 && highestRank - lowestRank === 4;
 
   const isLowAceStraight =
-    JSON.stringify(uniqueValues) === JSON.stringify([2, 3, 4, 5, 14]);
+    uniqueRankCount === 5 &&
+    rankCounts[14] === 1 &&
+    rankCounts[2] === 1 &&
+    rankCounts[3] === 1 &&
+    rankCounts[4] === 1 &&
+    rankCounts[5] === 1;
 
   const isStraight = isNormalStraight || isLowAceStraight;
 
   const isRoyal =
-    JSON.stringify(uniqueValues) === JSON.stringify([10, 11, 12, 13, 14]);
+    uniqueRankCount === 5 && lowestRank === 10 && highestRank === 14;
 
   if (isFlush && isRoyal) {
     return 'Royal Flush';
@@ -52,11 +93,11 @@ export function evaluateHand(hand) {
     return 'Straight Flush';
   }
 
-  if (counts[0] === 4) {
+  if (hasFourOfAKind) {
     return 'Four of a Kind';
   }
 
-  if (counts[0] === 3 && counts[1] === 2) {
+  if (hasThreeOfAKind && pairCount === 1) {
     return 'Full House';
   }
 
@@ -68,22 +109,16 @@ export function evaluateHand(hand) {
     return 'Straight';
   }
 
-  if (counts[0] === 3) {
+  if (hasThreeOfAKind) {
     return 'Three of a Kind';
   }
 
-  if (counts[0] === 2 && counts[1] === 2) {
+  if (pairCount === 2) {
     return 'Two Pair';
   }
 
-  const pairEntry = Object.entries(rankCounts).find(([, count]) => count === 2);
-
-  if (pairEntry) {
-    const pairValue = Number(pairEntry[0]);
-
-    if (pairValue >= rankValues.J) {
-      return 'Jacks or Better';
-    }
+  if (pairCount === 1 && pairRank >= rankValues.J) {
+    return 'Jacks or Better';
   }
 
   return 'Nothing';
